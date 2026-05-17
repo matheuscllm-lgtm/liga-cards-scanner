@@ -75,6 +75,46 @@ Cada execução gera dois arquivos em `reports/`:
 
 ambos ordenados por maior margem.
 
+## Modos do scanner
+
+O scanner alterna fonte de dados via variáveis de ambiente. Default: tudo mock.
+
+| Variável | Default | Valores | Efeito |
+|---|---|---|---|
+| `LIGA_USD_BRL_RATE` | `5.20` | float | Taxa USD→BRL usada na conversão. |
+| `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `api` | Fonte das referências TCGplayer. |
+| `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path | Caminho do CSV quando `LIGA_TCG_SOURCE=csv`. |
+
+### Modo `mock` (default)
+
+Lê `data/tcgplayer_prices_mock.json` e `data/liga_offers_mock.json`. É o
+caminho do CI e dos testes — não precisa de internet, credenciais ou
+arquivos extras.
+
+### Modo `csv` (fallback manual)
+
+Quando você não tem acesso à API do TCGplayer mas tem os preços de
+referência em planilha (export do site, extrato de Marketplace, etc):
+
+1. Copie o template:
+   ```bash
+   cp data/tcgplayer_prices.example.csv data/tcgplayer_prices.csv
+   ```
+2. Edite com os preços reais. Header obrigatório:
+   `card_name,set_name,market_price_usd` (e `url` opcional).
+3. Rode:
+   ```bash
+   LIGA_TCG_SOURCE=csv python src/main.py
+   ```
+
+O arquivo `tcgplayer_prices.csv` real está no `.gitignore` — não é
+commitado.
+
+### Modo `api`
+
+Stub. Levanta `NotImplementedError`. Será implementado depois do MVP,
+com credenciais oficiais do TCGplayer.
+
 ## Saída esperada
 
 A lista priorizada inclui, para cada card:
