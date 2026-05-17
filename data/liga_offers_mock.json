@@ -1,0 +1,51 @@
+[
+  {
+    "card_name": "Charizard ex",
+    "set_name": "Obsidian Flames",
+    "price_brl": 180.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=charizard-ex-obf",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Pikachu V",
+    "set_name": "Vivid Voltage",
+    "price_brl": 65.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=pikachu-v-viv",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Lugia V",
+    "set_name": "Silver Tempest",
+    "price_brl": 80.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=lugia-v-stb",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Iono",
+    "set_name": "Paldea Evolved",
+    "price_brl": 45.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=iono-pal",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Mew VMAX",
+    "set_name": "Fusion Strike",
+    "price_brl": 120.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=mew-vmax-fst",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Giratina VSTAR",
+    "set_name": "Lost Origin",
+    "price_brl": 95.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=giratina-vstar-lor",
+    "condition": "NM"
+  },
+  {
+    "card_name": "Miraidon ex",
+    "set_name": "Scarlet & Violet",
+    "price_brl": 70.00,
+    "url": "https://www.ligapokemon.com.br/?view=cards/card&card=miraidon-ex-sv",
+    "condition": "NM"
+  }
+]
