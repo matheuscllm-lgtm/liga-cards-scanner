@@ -227,3 +227,7 @@ reports/*.xlsx
 data/tcgplayer_prices.csv
 data/liga_offers.csv
 data/cache/
+
+# PowerShell runner artifacts
+logs/
+scanner.config
