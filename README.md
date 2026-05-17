@@ -57,6 +57,24 @@ liga-pokemon-scanner/
 
 ## Como rodar
 
+### Windows / PowerShell (padrão MyP)
+
+Duplo-clique nos `.bat` (ou rode os `.ps1` no terminal):
+
+1. `01_setup.bat` — encontra Python 3.10+, cria `.venv`, instala
+   `requirements.txt` + `pytest`. Log em `logs/setup_<timestamp>.log`.
+2. `02_scan_liga.bat` — roda o scanner. Log em
+   `logs/scan_<timestamp>.log`. Relatórios em `reports/`.
+
+Taxa USD->BRL: copie `scanner.config.example` para `scanner.config` e
+edite, ou passe via parâmetro:
+
+```powershell
+.\02_scan_liga.ps1 -Rate 5.35
+```
+
+### Linux / macOS / qualquer ambiente com Python
+
 ```bash
 pip install -r requirements.txt
 python src/main.py

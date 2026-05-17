@@ -221,3 +221,8 @@ __marimo__/
 reports/*.json
 reports/*.csv
 !reports/.gitkeep
+
+# PowerShell runner artifacts
+logs/
+scanner.config
+
