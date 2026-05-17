@@ -13,6 +13,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+import os
+
 from src.collectors.liga_pokemon import fetch_offers
 from src.collectors.tcgplayer import fetch_reference_prices
 from src.matching.card_matcher import Comparison, match_cards
@@ -24,7 +26,8 @@ REPORTS_DIR = _PROJECT_ROOT / "reports"
 def run() -> list[Comparison]:
     rate = get_exchange_rate()
     liga = fetch_offers()
-    tcg = fetch_reference_prices()
+    tcg_source = os.environ.get("LIGA_TCG_SOURCE", "mock")
+    tcg = fetch_reference_prices(source=tcg_source)
     comparisons = match_cards(liga, tcg, rate)
 
     REPORTS_DIR.mkdir(exist_ok=True)

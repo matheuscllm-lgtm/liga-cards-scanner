@@ -221,3 +221,6 @@ __marimo__/
 reports/*.json
 reports/*.csv
 !reports/.gitkeep
+
+# Real CSV with prices (use the .example.csv as template)
+data/tcgplayer_prices.csv
