@@ -66,10 +66,9 @@ def _write_csv(items: list[Comparison], path: Path) -> None:
 def _write_xlsx(items: list[Comparison], path: Path) -> None:
     try:
         from src.reporting.xlsx import write_xlsx
+        write_xlsx(items, path)
     except ImportError:
         print("[aviso] openpyxl ausente; pulando geracao do XLSX. Rode: pip install openpyxl")
-        return
-    write_xlsx(items, path)
 
 
 def _print_summary(items: list[Comparison], rate: float) -> None:
