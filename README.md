@@ -57,6 +57,9 @@ liga-pokemon-scanner/
 
 ## Como rodar
 
+> **Windows / nunca rodei Python antes?** Veja
+> [`INSTALL_WINDOWS.md`](INSTALL_WINDOWS.md) — passo-a-passo de 10 minutos.
+
 ```bash
 pip install -r requirements.txt
 python src/main.py
