@@ -84,11 +84,12 @@ O scanner alterna fonte de dados via variáveis de ambiente. Default: tudo mock.
 
 | Variável | Default | Valores | Efeito |
 |---|---|---|---|
-| `LIGA_USD_BRL_RATE` | `5.20` | float | Taxa USD→BRL usada na conversão. |
+| `LIGA_USD_BRL_RATE` | `5.20` | float / `auto` | Taxa USD→BRL. `auto` busca cotação ao vivo na AwesomeAPI com fallback para 5.20. |
 | `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `http` | Fonte das ofertas Liga Pokémon. |
 | `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path | Caminho do CSV quando `LIGA_OFFERS_SOURCE=csv`. |
 | `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `pokemontcg` / `api` | Fonte das referências TCGplayer. |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path | Caminho do CSV quando `LIGA_TCG_SOURCE=csv`. |
+| `LIGA_POKEMONTCG_CACHE_DIR` | `data/cache/pokemontcg` | path / vazio | Diretório de cache em disco (TTL 24h). Vazio desabilita. |
 
 ### Modo `mock` (default)
 

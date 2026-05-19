@@ -226,3 +226,4 @@ reports/*.xlsx
 # Real CSV with prices/offers (use the .example.csv as template)
 data/tcgplayer_prices.csv
 data/liga_offers.csv
+data/cache/

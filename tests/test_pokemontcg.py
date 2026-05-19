@@ -91,7 +91,7 @@ class TestFetchPrice:
             "src.collectors.pokemontcg.urllib.request.urlopen",
             return_value=_fake_response(payload),
         ), patch("src.collectors.pokemontcg.time.sleep"):
-            r = fetch_price("Charizard ex", "Obsidian Flames", delay_after=0)
+            r = fetch_price("Charizard ex", "Obsidian Flames", delay_after=0, cache_dir=None)
         assert isinstance(r, PokemonTCGResult)
         assert r.price_usd == 6.12
         assert r.variant == "holofoil"
@@ -102,7 +102,7 @@ class TestFetchPrice:
             "src.collectors.pokemontcg.urllib.request.urlopen",
             return_value=_fake_response(_payload_with_cards()),
         ), patch("src.collectors.pokemontcg.time.sleep"):
-            r = fetch_price("Nope", "Nope", delay_after=0)
+            r = fetch_price("Nope", "Nope", delay_after=0, cache_dir=None)
         assert r is None
 
     def test_returns_none_on_network_error(self):
@@ -110,7 +110,7 @@ class TestFetchPrice:
             "src.collectors.pokemontcg.urllib.request.urlopen",
             side_effect=TimeoutError("simulado"),
         ), patch("src.collectors.pokemontcg.time.sleep"):
-            r = fetch_price("X", "Y", delay_after=0)
+            r = fetch_price("X", "Y", delay_after=0, cache_dir=None)
         assert r is None
 
     def test_card_number_is_included_in_query(self):
@@ -130,7 +130,104 @@ class TestFetchPrice:
             "src.collectors.pokemontcg.urllib.request.urlopen",
             return_value=_fake_response(payload),
         ), patch("src.collectors.pokemontcg.time.sleep"):
-            fetch_price("X", "S", card_number="42", delay_after=0)
+            fetch_price("X", "S", card_number="42", delay_after=0, cache_dir=None)
 
         assert "number" in captured["url"]
         assert "42" in captured["url"]
+
+
+class TestCache:
+    def test_cache_hit_skips_http(self, tmp_path):
+        from src.collectors.pokemontcg import _resolve_cache_path, _save_cache
+
+        # Pre-popula o cache para a query exata.
+        query = 'name:"Cached" set.name:"S"'
+        path = _resolve_cache_path(tmp_path, query)
+        _save_cache(
+            path,
+            _payload_with_cards(_card("Cached", "S", "1", {"holofoil": {"market": 7.0}})),
+        )
+
+        with patch(
+            "src.collectors.pokemontcg.urllib.request.urlopen",
+            side_effect=AssertionError("nao deveria fazer HTTP"),
+        ):
+            r = fetch_price("Cached", "S", delay_after=0, cache_dir=tmp_path)
+        assert r is not None
+        assert r.price_usd == 7.0
+
+    def test_cache_miss_does_http_and_writes(self, tmp_path):
+        payload = _payload_with_cards(_card("X", "S", "1", {"holofoil": {"market": 3.0}}))
+        with patch(
+            "src.collectors.pokemontcg.urllib.request.urlopen",
+            return_value=_fake_response(payload),
+        ), patch("src.collectors.pokemontcg.time.sleep"):
+            r = fetch_price("X", "S", delay_after=0, cache_dir=tmp_path)
+        assert r.price_usd == 3.0
+        # Segunda chamada deve servir do cache mesmo sem rede.
+        with patch(
+            "src.collectors.pokemontcg.urllib.request.urlopen",
+            side_effect=AssertionError("usou rede de novo"),
+        ):
+            r2 = fetch_price("X", "S", delay_after=0, cache_dir=tmp_path)
+        assert r2.price_usd == 3.0
+
+    def test_expired_cache_is_ignored(self, tmp_path):
+        import os
+        import time as _time
+        from src.collectors.pokemontcg import _resolve_cache_path, _save_cache
+
+        query = 'name:"Old" set.name:"S"'
+        path = _resolve_cache_path(tmp_path, query)
+        _save_cache(path, _payload_with_cards(_card("Old", "S", "1", {"holofoil": {"market": 1.0}})))
+        old = _time.time() - 999999
+        os.utime(path, (old, old))
+
+        payload_new = _payload_with_cards(_card("Old", "S", "1", {"holofoil": {"market": 99.0}}))
+        with patch(
+            "src.collectors.pokemontcg.urllib.request.urlopen",
+            return_value=_fake_response(payload_new),
+        ), patch("src.collectors.pokemontcg.time.sleep"):
+            r = fetch_price("Old", "S", delay_after=0, cache_dir=tmp_path, cache_ttl=60)
+        assert r.price_usd == 99.0
+
+
+class TestRetry:
+    def test_retries_on_timeout_then_succeeds(self, tmp_path):
+        payload = _payload_with_cards(_card("X", "S", "1", {"holofoil": {"market": 2.0}}))
+        attempts = []
+
+        def fake_urlopen(req, timeout=None):
+            attempts.append(1)
+            if len(attempts) < 3:
+                raise TimeoutError("simulado")
+            return _fake_response(payload)
+
+        with patch("src.collectors.pokemontcg.urllib.request.urlopen", side_effect=fake_urlopen), \
+             patch("src.collectors.pokemontcg.time.sleep"):
+            r = fetch_price("X", "S", delay_after=0, cache_dir=None, retry_attempts=3)
+        assert r is not None
+        assert len(attempts) == 3
+
+    def test_gives_up_after_max_attempts(self, tmp_path):
+        with patch(
+            "src.collectors.pokemontcg.urllib.request.urlopen",
+            side_effect=TimeoutError("simulado"),
+        ), patch("src.collectors.pokemontcg.time.sleep"):
+            r = fetch_price("X", "S", delay_after=0, cache_dir=None, retry_attempts=2)
+        assert r is None
+
+    def test_no_retry_on_404(self, tmp_path):
+        import urllib.error as _err
+
+        attempts = []
+
+        def fake_urlopen(req, timeout=None):
+            attempts.append(1)
+            raise _err.HTTPError("url", 404, "Not Found", {}, None)
+
+        with patch("src.collectors.pokemontcg.urllib.request.urlopen", side_effect=fake_urlopen), \
+             patch("src.collectors.pokemontcg.time.sleep"):
+            r = fetch_price("X", "S", delay_after=0, cache_dir=None, retry_attempts=3)
+        assert r is None
+        assert len(attempts) == 1  # nao retentou
