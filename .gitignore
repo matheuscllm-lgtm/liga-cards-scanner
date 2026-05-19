@@ -220,6 +220,7 @@ __marimo__/
 # Generated scanner output
 reports/*.json
 reports/*.csv
+reports/*.xlsx
 !reports/.gitkeep
 
 # Real CSV with prices (use the .example.csv as template)

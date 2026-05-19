@@ -34,6 +34,7 @@ def run() -> list[Comparison]:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     _write_json(comparisons, REPORTS_DIR / f"report_{stamp}.json")
     _write_csv(comparisons, REPORTS_DIR / f"report_{stamp}.csv")
+    _write_xlsx(comparisons, REPORTS_DIR / f"report_{stamp}.xlsx")
     _print_summary(comparisons, rate)
     return comparisons
 
@@ -54,6 +55,15 @@ def _write_csv(items: list[Comparison], path: Path) -> None:
         writer.writeheader()
         for item in items:
             writer.writerow(asdict(item))
+
+
+def _write_xlsx(items: list[Comparison], path: Path) -> None:
+    try:
+        from src.reporting.xlsx import write_xlsx
+    except ImportError:
+        print("[aviso] openpyxl ausente; pulando geracao do XLSX. Rode: pip install openpyxl")
+        return
+    write_xlsx(items, path)
 
 
 def _print_summary(items: list[Comparison], rate: float) -> None:
