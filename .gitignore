@@ -223,5 +223,6 @@ reports/*.csv
 reports/*.xlsx
 !reports/.gitkeep
 
-# Real CSV with prices (use the .example.csv as template)
+# Real CSV with prices/offers (use the .example.csv as template)
 data/tcgplayer_prices.csv
+data/liga_offers.csv

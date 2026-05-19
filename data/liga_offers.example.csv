@@ -1,0 +1,11 @@
+# Ofertas da Liga Pokemon exportadas manualmente.
+# Copie este arquivo para data/liga_offers.csv (nao commitado) ou aponte
+# LIGA_OFFERS_CSV=/caminho/para/arquivo.csv. Linhas comecando com '#' sao ignoradas.
+# 'condition' default 'NM'; 'seller' opcional.
+card_name,set_name,price_brl,url,condition,seller
+Charizard ex,Obsidian Flames,180.00,https://www.ligapokemon.com.br/?view=cards/card&card=charizard-ex-obf,NM,
+Pikachu V,Vivid Voltage,65.00,https://www.ligapokemon.com.br/?view=cards/card&card=pikachu-v-viv,NM,
+Lugia V,Silver Tempest,80.00,https://www.ligapokemon.com.br/?view=cards/card&card=lugia-v-stb,NM,
+Mew VMAX,Fusion Strike,120.00,https://www.ligapokemon.com.br/?view=cards/card&card=mew-vmax-fst,NM,
+Giratina VSTAR,Lost Origin,95.00,https://www.ligapokemon.com.br/?view=cards/card&card=giratina-vstar-lor,NM,
+Miraidon ex,Scarlet & Violet,70.00,https://www.ligapokemon.com.br/?view=cards/card&card=miraidon-ex-sv,NM,

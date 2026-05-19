@@ -25,7 +25,8 @@ REPORTS_DIR = _PROJECT_ROOT / "reports"
 
 def run() -> list[Comparison]:
     rate = get_exchange_rate()
-    liga = fetch_offers()
+    liga_source = os.environ.get("LIGA_OFFERS_SOURCE", "mock")
+    liga = fetch_offers(source=liga_source)
     tcg_source = os.environ.get("LIGA_TCG_SOURCE", "mock")
     tcg = fetch_reference_prices(source=tcg_source)
     comparisons = match_cards(liga, tcg, rate)

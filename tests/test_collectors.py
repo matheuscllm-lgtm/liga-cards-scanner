@@ -1,6 +1,11 @@
-"""Testes do coletor TCGplayer em modo mock e CSV."""
+"""Testes dos coletores TCGplayer e Liga em modo mock e CSV."""
 import pytest
 
+from src.collectors.liga_pokemon import (
+    DEFAULT_CSV_PATH as LIGA_DEFAULT_CSV_PATH,
+    LigaOffer,
+    fetch_offers,
+)
 from src.collectors.tcgplayer import (
     DEFAULT_CSV_PATH,
     TCGReference,
@@ -99,3 +104,98 @@ class TestUnknownSource:
     def test_api_mode_is_stub(self):
         with pytest.raises(NotImplementedError):
             fetch_reference_prices(source="api")
+
+
+class TestLigaMockMode:
+    def test_returns_list_of_offers(self):
+        offers = fetch_offers()
+        assert isinstance(offers, list)
+        assert all(isinstance(o, LigaOffer) for o in offers)
+        assert len(offers) >= 1
+
+
+class TestLigaCsvMode:
+    HEADER = "card_name,set_name,price_brl,url,condition,seller\n"
+
+    def _write_csv(self, tmp_path, body, header=HEADER):
+        path = tmp_path / "liga.csv"
+        path.write_text(header + body, encoding="utf-8")
+        return path
+
+    def test_loads_well_formed_csv(self, tmp_path):
+        path = self._write_csv(
+            tmp_path,
+            "Charizard ex,Obsidian Flames,180.00,https://liga/c,NM,LojaA\n"
+            "Pikachu V,Vivid Voltage,65.00,https://liga/p,,\n",
+        )
+        offers = fetch_offers(source="csv", csv_path=path)
+        assert len(offers) == 2
+        assert offers[0].card_name == "Charizard ex"
+        assert offers[0].price_brl == 180.00
+        assert offers[0].seller == "LojaA"
+        assert offers[1].condition == "NM"  # default quando vazio
+
+    def test_optional_columns_default_nicely(self, tmp_path):
+        path = tmp_path / "liga.csv"
+        path.write_text(
+            "card_name,set_name,price_brl,url\n"
+            "Iono,Paldea Evolved,45.00,https://liga/i\n",
+            encoding="utf-8",
+        )
+        offers = fetch_offers(source="csv", csv_path=path)
+        assert len(offers) == 1
+        assert offers[0].condition == "NM"
+        assert offers[0].seller == ""
+
+    def test_ignores_comment_lines(self, tmp_path):
+        path = tmp_path / "liga.csv"
+        path.write_text(
+            "# header comment\n"
+            "card_name,set_name,price_brl,url\n"
+            "# midline\n"
+            "Mew VMAX,Fusion Strike,120.00,https://liga/m\n",
+            encoding="utf-8",
+        )
+        offers = fetch_offers(source="csv", csv_path=path)
+        assert len(offers) == 1
+
+    def test_skips_invalid_price(self, tmp_path):
+        path = self._write_csv(
+            tmp_path,
+            "Ok,Set X,100.00,https://liga/o,,\n"
+            "Quebrado,Set X,not_a_number,https://liga/q,,\n"
+            "Outro,Set X,50.00,https://liga/x,,\n",
+        )
+        offers = fetch_offers(source="csv", csv_path=path)
+        assert [o.card_name for o in offers] == ["Ok", "Outro"]
+
+    def test_raises_on_missing_required_columns(self, tmp_path):
+        path = tmp_path / "liga.csv"
+        path.write_text("card_name,set_name\nA,B\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="price_brl"):
+            fetch_offers(source="csv", csv_path=path)
+
+    def test_raises_when_file_missing(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            fetch_offers(source="csv", csv_path=tmp_path / "nao_existe.csv")
+
+    def test_env_var_overrides_default_path(self, tmp_path, monkeypatch):
+        path = self._write_csv(tmp_path, "Card,Set,100.00,https://liga/c,,\n")
+        monkeypatch.setenv("LIGA_OFFERS_CSV", str(path))
+        offers = fetch_offers(source="csv")
+        assert len(offers) == 1
+        assert offers[0].card_name == "Card"
+
+    def test_default_csv_path_lives_in_data_dir(self):
+        assert LIGA_DEFAULT_CSV_PATH.name == "liga_offers.csv"
+        assert LIGA_DEFAULT_CSV_PATH.parent.name == "data"
+
+
+class TestLigaUnknownSource:
+    def test_raises_value_error(self):
+        with pytest.raises(ValueError, match="Source desconhecido"):
+            fetch_offers(source="ftp")
+
+    def test_http_mode_is_stub(self):
+        with pytest.raises(NotImplementedError):
+            fetch_offers(source="http")

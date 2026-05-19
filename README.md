@@ -82,6 +82,8 @@ O scanner alterna fonte de dados via variáveis de ambiente. Default: tudo mock.
 | Variável | Default | Valores | Efeito |
 |---|---|---|---|
 | `LIGA_USD_BRL_RATE` | `5.20` | float | Taxa USD→BRL usada na conversão. |
+| `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `http` | Fonte das ofertas Liga Pokémon. |
+| `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path | Caminho do CSV quando `LIGA_OFFERS_SOURCE=csv`. |
 | `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `api` | Fonte das referências TCGplayer. |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path | Caminho do CSV quando `LIGA_TCG_SOURCE=csv`. |
 
@@ -93,27 +95,48 @@ arquivos extras.
 
 ### Modo `csv` (fallback manual)
 
-Quando você não tem acesso à API do TCGplayer mas tem os preços de
-referência em planilha (export do site, extrato de Marketplace, etc):
+Padrão do brief — Liga bloqueia clientes não-browser e TCGplayer exige
+credenciais. Solução: exportar manualmente os dois lados.
 
-1. Copie o template:
+**Ofertas Liga Pokémon:**
+
+1. Copie o template e edite com as ofertas:
+   ```bash
+   cp data/liga_offers.example.csv data/liga_offers.csv
+   ```
+   Header obrigatório: `card_name,set_name,price_brl,url`.
+   Opcionais: `condition` (default `NM`), `seller`.
+2. Rode:
+   ```bash
+   LIGA_OFFERS_SOURCE=csv python src/main.py
+   ```
+
+**Referências TCGplayer:**
+
+1. Mesmo padrão:
    ```bash
    cp data/tcgplayer_prices.example.csv data/tcgplayer_prices.csv
    ```
-2. Edite com os preços reais. Header obrigatório:
-   `card_name,set_name,market_price_usd` (e `url` opcional).
-3. Rode:
+   Header: `card_name,set_name,market_price_usd[,url]`.
+2. Rode:
    ```bash
    LIGA_TCG_SOURCE=csv python src/main.py
    ```
 
-O arquivo `tcgplayer_prices.csv` real está no `.gitignore` — não é
-commitado.
+Os dois ao mesmo tempo (caminho de produção atual):
 
-### Modo `api`
+```bash
+LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=csv python src/main.py
+```
 
-Stub. Levanta `NotImplementedError`. Será implementado depois do MVP,
-com credenciais oficiais do TCGplayer.
+Os arquivos `data/liga_offers.csv` e `data/tcgplayer_prices.csv` reais
+estão no `.gitignore` — não são commitados.
+
+### Modos `http` (Liga) e `api` (TCGplayer)
+
+Stubs que levantam `NotImplementedError`. Liga retorna 403 para clientes
+não-browser, e o brief proíbe burlar bloqueios. TCGplayer exige
+credenciais oficiais. Ambos ficam para depois do MVP.
 
 ## Saída esperada
 
