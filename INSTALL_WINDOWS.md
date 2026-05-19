@@ -66,24 +66,41 @@ que mude o `requirements.txt`.
 
 ## 4. Rodar o scanner
 
-Hoje o scanner funciona em **modo mock** (7 cards de exemplo) e em
-**modo CSV** (você fornece a lista de ofertas).
+O scanner tem três modos prontos com 1 clique cada.
 
-### Modo mock (teste rápido)
+### Modo mock (teste rápido — confirma instalação)
 
 1. Duplo-clique em `02_scan_liga.bat`.
-2. Aparece a tabela no terminal e gera 3 arquivos em `reports/`:
-   - `report_<timestamp>.json`
-   - `report_<timestamp>.csv`
-   - **`report_<timestamp>.xlsx`** ← essa é a planilha. Abra no Excel.
+2. Aparece tabela no terminal + 3 arquivos em `reports/`:
+   `report_<timestamp>.{json,csv,xlsx}`. Abra o **.xlsx** no Excel.
 
-### Modo CSV (dados reais)
+### Modo produção (Liga CSV + TCG ao vivo) — **recomendado**
 
-1. Copie `data/liga_offers.example.csv` para `data/liga_offers.csv` e
-   edite com as ofertas reais que você quer comparar.
-2. Copie `data/tcgplayer_prices.example.csv` para
-   `data/tcgplayer_prices.csv` e edite com os preços de referência.
-3. Antes de rodar, ajuste o ambiente no PowerShell:
+Caminho final do produto: você cura o CSV de ofertas Liga, o lado TCG
+vem 100% sozinho da API pública pokemontcg.io.
+
+1. Copie `data/liga_offers.example.csv` para `data/liga_offers.csv`.
+2. Edite com as ofertas que você quer monitorar. Header obrigatório:
+   `card_name,set_name,price_brl,url`. Opcionais: `condition`, `seller`.
+3. Duplo-clique em **`03_scan_real.bat`**.
+
+A primeira execução é mais lenta (~1s por card) porque consulta a API.
+A segunda execução usa cache em disco e é instantânea (cache TTL 24h
+em `data/cache/`).
+
+Pra usar câmbio ao vivo (AwesomeAPI), rode no PowerShell:
+
+```powershell
+.\03_scan_real.ps1 -Live
+```
+
+### Modo CSV puro (dois lados manuais)
+
+Se quiser ter o controle total dos preços de referência:
+
+1. Copie `data/tcgplayer_prices.example.csv` para
+   `data/tcgplayer_prices.csv` e edite.
+2. No PowerShell:
 
    ```powershell
    $env:LIGA_OFFERS_SOURCE = "csv"
