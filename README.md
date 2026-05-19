@@ -87,7 +87,7 @@ O scanner alterna fonte de dados via variáveis de ambiente. Default: tudo mock.
 | `LIGA_USD_BRL_RATE` | `5.20` | float | Taxa USD→BRL usada na conversão. |
 | `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `http` | Fonte das ofertas Liga Pokémon. |
 | `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path | Caminho do CSV quando `LIGA_OFFERS_SOURCE=csv`. |
-| `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `api` | Fonte das referências TCGplayer. |
+| `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `pokemontcg` / `api` | Fonte das referências TCGplayer. |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path | Caminho do CSV quando `LIGA_TCG_SOURCE=csv`. |
 
 ### Modo `mock` (default)
@@ -134,6 +134,21 @@ LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=csv python src/main.py
 
 Os arquivos `data/liga_offers.csv` e `data/tcgplayer_prices.csv` reais
 estão no `.gitignore` — não são commitados.
+
+### Modo `pokemontcg` (TCGplayer real, sem credenciais)
+
+Consulta a API pública [`pokemontcg.io`](https://pokemontcg.io/) para
+cada par (card_name, set_name) **derivado das ofertas Liga** — só
+precisa fornecer as ofertas, o preço TCG vem automático:
+
+```bash
+LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
+```
+
+Sem auth, sem chave. Aplica `delay_after=1s` por requisição para
+respeitar rate limit. Cards com várias versões no mesmo set (regular,
+full art) são desambiguados pegando a de menor preço de mercado
+(assume Liga vende a regular).
 
 ### Modos `http` (Liga) e `api` (TCGplayer)
 

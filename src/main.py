@@ -28,7 +28,12 @@ def run() -> list[Comparison]:
     liga_source = os.environ.get("LIGA_OFFERS_SOURCE", "mock")
     liga = fetch_offers(source=liga_source)
     tcg_source = os.environ.get("LIGA_TCG_SOURCE", "mock")
-    tcg = fetch_reference_prices(source=tcg_source)
+    queries = (
+        [(o.card_name, o.set_name) for o in liga]
+        if tcg_source == "pokemontcg"
+        else None
+    )
+    tcg = fetch_reference_prices(source=tcg_source, queries=queries)
     comparisons = match_cards(liga, tcg, rate)
 
     REPORTS_DIR.mkdir(exist_ok=True)

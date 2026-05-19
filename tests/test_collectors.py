@@ -106,6 +106,61 @@ class TestUnknownSource:
             fetch_reference_prices(source="api")
 
 
+class TestPokemontcgMode:
+    def test_requires_queries(self):
+        with pytest.raises(ValueError, match="queries"):
+            fetch_reference_prices(source="pokemontcg")
+
+    def test_calls_fetch_price_per_query(self, monkeypatch):
+        from src.collectors import pokemontcg as pkm
+
+        calls = []
+
+        def fake_fetch_price(name, set_, **kwargs):
+            calls.append((name, set_))
+            return pkm.PokemonTCGResult(
+                card_name=name,
+                set_name=set_,
+                card_number="1",
+                price_usd=10.0,
+                url=f"https://tcg/{name}",
+                variant="holofoil",
+            )
+
+        monkeypatch.setattr(
+            "src.collectors.pokemontcg.fetch_price", fake_fetch_price
+        )
+        refs = fetch_reference_prices(
+            source="pokemontcg",
+            queries=[("Charizard ex", "Obsidian Flames"), ("Pikachu V", "Vivid Voltage")],
+        )
+        assert len(refs) == 2
+        assert calls == [
+            ("Charizard ex", "Obsidian Flames"),
+            ("Pikachu V", "Vivid Voltage"),
+        ]
+        assert refs[0].price_usd == 10.0
+        assert refs[0].url == "https://tcg/Charizard ex"
+
+    def test_skips_when_api_returns_none(self, monkeypatch):
+        def fake_fetch_price(name, set_, **kwargs):
+            return None if name == "Missing" else type(
+                "R", (), dict(
+                    card_name=name, set_name=set_, card_number="1",
+                    price_usd=5.0, url="", variant="normal",
+                ),
+            )()
+
+        monkeypatch.setattr(
+            "src.collectors.pokemontcg.fetch_price", fake_fetch_price
+        )
+        refs = fetch_reference_prices(
+            source="pokemontcg",
+            queries=[("Found", "S"), ("Missing", "S"), ("Found2", "S")],
+        )
+        assert [r.card_name for r in refs] == ["Found", "Found2"]
+
+
 class TestLigaMockMode:
     def test_returns_list_of_offers(self):
         offers = fetch_offers()

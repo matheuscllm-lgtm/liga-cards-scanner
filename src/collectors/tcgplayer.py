@@ -1,13 +1,16 @@
 """Coletor de precos de referencia do TCGplayer (em USD).
 
 Modos suportados:
-- ``mock``  : dados em data/tcgplayer_prices_mock.json (default; usado em
-  testes e smoke do CI).
-- ``csv``   : le um CSV exportado/curado manualmente. Caminho default em
-  data/tcgplayer_prices.csv, sobrescrevivel via env var
+- ``mock``       : dados em data/tcgplayer_prices_mock.json (default;
+  usado em testes e smoke do CI).
+- ``csv``        : le um CSV exportado/curado manualmente. Caminho
+  default em data/tcgplayer_prices.csv, sobrescrevivel via env var
   ``LIGA_TCG_CSV`` ou parametro ``csv_path``.
-- ``api``   : stub. Integracao oficial exige credenciais e fica para
-  depois do MVP.
+- ``pokemontcg`` : consulta API publica pokemontcg.io para cada par
+  (card_name, set_name) em ``queries``. Sem auth, com delay padrao
+  para respeitar rate limit.
+- ``api``        : stub. Integracao TCGplayer oficial exige credenciais
+  e fica para depois do MVP.
 
 Formato esperado do CSV (header obrigatorio):
     card_name,set_name,market_price_usd[,url]
@@ -43,20 +46,59 @@ class TCGReference:
 
 
 def fetch_reference_prices(
-    source: str = "mock", csv_path: str | Path | None = None
+    source: str = "mock",
+    csv_path: str | Path | None = None,
+    queries: list[tuple[str, str]] | None = None,
 ) -> list[TCGReference]:
+    """Retorna precos TCGplayer em USD para as ofertas/queries.
+
+    Para ``source='pokemontcg'``, ``queries`` deve ser uma lista de
+    pares ``(card_name, set_name)`` -- tipicamente derivada das ofertas
+    Liga via ``[(o.card_name, o.set_name) for o in liga_offers]``.
+    """
     if source == "mock":
         return _load_mock()
     if source == "csv":
         path = _resolve_csv_path(csv_path)
         return _load_csv(path)
+    if source == "pokemontcg":
+        if queries is None:
+            raise ValueError(
+                "source='pokemontcg' requer queries=[(card_name, set_name), ...]"
+            )
+        return _load_pokemontcg(queries)
     if source == "api":
         raise NotImplementedError(
             "Integracao com a API do TCGplayer exige credenciais oficiais."
         )
     raise ValueError(
-        f"Source desconhecido: {source!r}. Use 'mock', 'csv' ou 'api'."
+        f"Source desconhecido: {source!r}. Use 'mock', 'csv', 'pokemontcg' ou 'api'."
     )
+
+
+def _load_pokemontcg(queries: list[tuple[str, str]]) -> list[TCGReference]:
+    # Import tardio: evita custo no caminho mock/csv que e o do CI.
+    from src.collectors.pokemontcg import fetch_price
+
+    refs: list[TCGReference] = []
+    for card_name, set_name in queries:
+        result = fetch_price(card_name, set_name)
+        if result is None:
+            logger.info(
+                "pokemontcg.io sem preco para %r / %r (pulado)",
+                card_name,
+                set_name,
+            )
+            continue
+        refs.append(
+            TCGReference(
+                card_name=result.card_name,
+                set_name=result.set_name,
+                price_usd=result.price_usd,
+                url=result.url,
+            )
+        )
+    return refs
 
 
 def _resolve_csv_path(explicit: str | Path | None) -> Path:
