@@ -224,6 +224,19 @@ class TestLigaCsvMode:
         offers = fetch_offers(source="csv", csv_path=path)
         assert [o.card_name for o in offers] == ["Ok", "Outro"]
 
+    def test_skips_non_positive_price(self, tmp_path):
+        # Preco 0 ou negativo passa no float() mas quebraria calculate_margin.
+        # Deve ser pulado na origem, igual aos precos nao-numericos.
+        path = self._write_csv(
+            tmp_path,
+            "Ok,Set X,100.00,https://liga/o,,\n"
+            "Zerado,Set X,0,https://liga/z,,\n"
+            "Negativo,Set X,-5.00,https://liga/n,,\n"
+            "Outro,Set X,50.00,https://liga/x,,\n",
+        )
+        offers = fetch_offers(source="csv", csv_path=path)
+        assert [o.card_name for o in offers] == ["Ok", "Outro"]
+
     def test_raises_on_missing_required_columns(self, tmp_path):
         path = tmp_path / "liga.csv"
         path.write_text("card_name,set_name\nA,B\n", encoding="utf-8")

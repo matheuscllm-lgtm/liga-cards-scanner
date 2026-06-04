@@ -10,6 +10,7 @@ Estrategia em duas camadas:
 from __future__ import annotations
 
 import difflib
+import logging
 from dataclasses import dataclass
 
 from src.collectors.liga_pokemon import LigaOffer
@@ -22,6 +23,8 @@ from src.pricing.margin import (
     calculate_margin,
     is_approved,
 )
+
+logger = logging.getLogger(__name__)
 
 FUZZY_MATCH_THRESHOLD = 0.85
 NAME_WEIGHT = 0.7
@@ -87,6 +90,15 @@ def match_cards(
 
     comparisons: list[Comparison] = []
     for offer in liga_offers:
+        if offer.price_brl <= 0:
+            # Margem exige preco Liga positivo (ver calculate_margin). Pula
+            # em vez de deixar a excecao abortar o pipeline inteiro.
+            logger.warning(
+                "Oferta %r ignorada: preco Liga nao positivo (%s).",
+                offer.card_name,
+                offer.price_brl,
+            )
+            continue
         offer_key = _normalized_key(offer.card_name, offer.set_name)
         score = 1.0
         ref = index.get(offer_key)

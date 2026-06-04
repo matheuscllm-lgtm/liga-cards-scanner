@@ -109,6 +109,22 @@ class TestMatchCards:
         result = match_cards(offers, refs, exchange_rate=5.0)
         assert result == []
 
+    def test_non_positive_offer_price_is_skipped(self):
+        # Preco Liga <= 0 nao gera margem valida; deve ser pulado em vez de
+        # propagar ValueError de calculate_margin e abortar o scan inteiro.
+        offers = [
+            self._offer("Charizard ex", "Obsidian Flames", price=0.0),
+            self._offer("Pikachu V", "Vivid Voltage", price=-10.0),
+            self._offer("Mew VMAX", "Fusion Strike", price=80.0),
+        ]
+        refs = [
+            self._ref("Charizard ex", "Obsidian Flames"),
+            self._ref("Pikachu V", "Vivid Voltage"),
+            self._ref("Mew VMAX", "Fusion Strike"),
+        ]
+        result = match_cards(offers, refs, exchange_rate=5.0)
+        assert [r.card_name for r in result] == ["Mew VMAX"]
+
     def test_low_threshold_admits_loose_match(self):
         # Set escrito errado mas nome bate. Com threshold baixo, aceita.
         offers = [self._offer("Charizard ex", "Obsdian Flms")]

@@ -107,6 +107,14 @@ def _load_csv(path: Path) -> list[LigaOffer]:
                     row.get("price_brl"),
                 )
                 continue
+            if price <= 0:
+                logger.warning(
+                    "Linha %d em %s ignorada: preco nao positivo %r",
+                    line_no,
+                    path,
+                    row.get("price_brl"),
+                )
+                continue
             offers.append(
                 LigaOffer(
                     card_name=(row["card_name"] or "").strip(),

@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import urllib.error
 import urllib.request
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,9 @@ def _fetch_live_rate() -> float | None:
         req = urllib.request.Request(LIVE_RATE_URL, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=LIVE_RATE_TIMEOUT) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
-    except (TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+    except Exception as exc:
+        # Best-effort: qualquer falha (timeout, conexao resetada no meio do
+        # read, payload nao-UTF8/JSON invalido) cai no fallback silencioso.
         logger.warning("AwesomeAPI falhou: %s", exc)
         return None
     entry = payload.get("USDBRL") if isinstance(payload, dict) else None

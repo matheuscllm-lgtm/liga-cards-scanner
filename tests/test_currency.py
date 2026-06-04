@@ -88,3 +88,26 @@ class TestLiveExchangeRate:
             "src.pricing.currency.urllib.request.urlopen", return_value=body
         ):
             assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
+
+    def test_auto_falls_back_on_connection_reset_mid_read(self, monkeypatch):
+        # Conexao cai durante resp.read(): ConnectionResetError e OSError, nao
+        # URLError. Antes do fix escapava do except e crashava o scan.
+        from unittest.mock import patch
+
+        monkeypatch.setenv("LIGA_USD_BRL_RATE", "auto")
+
+        class _BrokenResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                raise ConnectionResetError("conexao caiu no meio do read")
+
+        with patch(
+            "src.pricing.currency.urllib.request.urlopen",
+            return_value=_BrokenResponse(),
+        ):
+            assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
