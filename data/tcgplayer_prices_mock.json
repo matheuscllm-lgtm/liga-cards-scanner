@@ -1,0 +1,44 @@
+[
+  {
+    "card_name": "Charizard ex",
+    "set_name": "Obsidian Flames",
+    "price_usd": 55.00,
+    "url": "https://www.tcgplayer.com/product/charizard-ex-obf"
+  },
+  {
+    "card_name": "Pikachu V",
+    "set_name": "Vivid Voltage",
+    "price_usd": 14.00,
+    "url": "https://www.tcgplayer.com/product/pikachu-v-viv"
+  },
+  {
+    "card_name": "Lugia V",
+    "set_name": "Silver Tempest",
+    "price_usd": 22.00,
+    "url": "https://www.tcgplayer.com/product/lugia-v-stb"
+  },
+  {
+    "card_name": "Iono",
+    "set_name": "Paldea Evolved",
+    "price_usd": 12.00,
+    "url": "https://www.tcgplayer.com/product/iono-pal"
+  },
+  {
+    "card_name": "Mew VMAX",
+    "set_name": "Fusion Strike",
+    "price_usd": 32.00,
+    "url": "https://www.tcgplayer.com/product/mew-vmax-fst"
+  },
+  {
+    "card_name": "Giratina VSTAR",
+    "set_name": "Lost Origin",
+    "price_usd": 18.00,
+    "url": "https://www.tcgplayer.com/product/giratina-vstar-lor"
+  },
+  {
+    "card_name": "Miraidon ex",
+    "set_name": "Scarlet & Violet",
+    "price_usd": 20.00,
+    "url": "https://www.tcgplayer.com/product/miraidon-ex-sv"
+  }
+]

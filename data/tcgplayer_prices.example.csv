@@ -1,0 +1,12 @@
+# Referencia de precos TCGplayer em USD para o scanner.
+# Copie este arquivo para data/tcgplayer_prices.csv (nao commitado) ou
+# defina LIGA_TCG_CSV=/caminho/para/arquivo.csv.
+# Linhas que comecam com '#' sao ignoradas. 'url' e opcional.
+card_name,set_name,market_price_usd,url
+Charizard ex,Obsidian Flames,55.00,https://www.tcgplayer.com/product/charizard-ex-obf
+Pikachu V,Vivid Voltage,14.00,https://www.tcgplayer.com/product/pikachu-v-viv
+Lugia V,Silver Tempest,22.00,https://www.tcgplayer.com/product/lugia-v-stb
+Iono,Paldea Evolved,12.00,https://www.tcgplayer.com/product/iono-pal
+Mew VMAX,Fusion Strike,32.00,https://www.tcgplayer.com/product/mew-vmax-fst
+Giratina VSTAR,Lost Origin,18.00,https://www.tcgplayer.com/product/giratina-vstar-lor
+Miraidon ex,Scarlet & Violet,20.00,https://www.tcgplayer.com/product/miraidon-ex-sv
