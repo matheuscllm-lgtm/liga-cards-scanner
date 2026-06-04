@@ -1,0 +1,3 @@
+# Copie este arquivo para scanner.config e ajuste a taxa antes de rodar
+# .\02_scan_liga.ps1. O scanner.config nao e commitado.
+USD_BRL_RATE=5.20

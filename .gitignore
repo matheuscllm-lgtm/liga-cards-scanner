@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated scanner output
+reports/*.json
+reports/*.csv
+reports/*.xlsx
+!reports/.gitkeep
+
+# Real CSV with prices/offers (use the .example.csv as template)
+data/tcgplayer_prices.csv
+data/liga_offers.csv
+data/cache/
+
+# PowerShell runner artifacts
+logs/
+scanner.config
