@@ -10,12 +10,18 @@ Orientação para o Claude Code (e outros agentes) ao trabalhar neste repositór
 Scanner de **arbitragem de cards Pokémon**. Compara o preço de oferta na **Liga
 Pokémon** (marketplace BR, em R$) com o preço de referência do **TCGplayer**
 (USD, obtido via API pública pokemontcg.io), converte tudo para BRL e lista os
-cards com **margem ≥ 25%** e **preço ≥ R$50**, ordenados por maior margem.
+cards com **margem bruta ≥ 30%** e **preço ≥ R$50**, ordenados por maior margem.
 
 ```
-Margem% = ((TCG_BRL − Liga_BRL) / Liga_BRL) × 100
-Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 25%
+Margem% = ((TCG_BRL − Liga_BRL) / Liga_BRL) × 100   (margem BRUTA, sem taxas)
+Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 ```
+
+> **Margem é BRUTA**: só a diferença de preço entre os dois produtos. O scanner
+> NÃO embute frete, taxa de cartão, IOF nem qualquer outra taxa — o operador
+> calcula isso por fora, manualmente. O piso de R$50 é filtro de relevância
+> (não é taxa). Regra cross-scanner do operador (2026-06-06): 30% bruta, todos
+> os scanners de TCG.
 
 ## Comandos
 
@@ -60,7 +66,7 @@ src/matching/
   normalization.py       lowercase, remove acento, aliases de set (obf -> obsidian flames...), VMAX/VSTAR/VUNION
 src/pricing/
   currency.py            get_exchange_rate() (fixo / auto); convert_usd_to_brl()
-  margin.py              calculate_margin(); is_approved().  MIN_MARGIN=25%, MIN_PRICE=R$50
+  margin.py              calculate_margin(); is_approved().  MIN_MARGIN=30% (bruta, sem taxa), MIN_PRICE=R$50
 src/reporting/
   xlsx.py                write_xlsx() — header colorido, formato moeda/%, tinta por status, hyperlinks, freeze panes, autofilter
 ```

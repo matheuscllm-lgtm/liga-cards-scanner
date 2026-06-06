@@ -1,4 +1,4 @@
-"""Testes das regras de filtro do scanner: preço >= R$50 e margem >= 25%."""
+"""Testes das regras de filtro do scanner: preço >= R$50 e margem >= 30%."""
 from src.collectors.liga_pokemon import LigaOffer
 from src.collectors.tcgplayer import TCGReference
 from src.matching.card_matcher import match_cards
@@ -34,7 +34,7 @@ class TestFilters:
         result = match_cards([offer], [ref], exchange_rate=5.0)
         assert result[0].status == "rejected"
 
-    def test_rejected_when_margin_below_25(self):
+    def test_rejected_when_margin_below_30(self):
         offer, ref = _make_pair(price_liga=100.0, price_usd=22.0)
         # tcg_brl = 110; margem = 10%
         result = match_cards([offer], [ref], exchange_rate=5.0)
@@ -47,9 +47,9 @@ class TestFilters:
         assert result[0].status == "rejected"
 
     def test_approved_exactly_at_boundary(self):
-        # preço Liga exatamente R$50, margem exatamente 25%
-        # tcg_brl = liga * 1.25 = 62.5; usd = 62.5 / rate
-        offer, ref = _make_pair(price_liga=50.0, price_usd=62.5 / 5.0)
+        # preço Liga exatamente R$50, margem exatamente 30%
+        # tcg_brl = liga * 1.30 = 65.0; usd = 65.0 / rate
+        offer, ref = _make_pair(price_liga=50.0, price_usd=65.0 / 5.0)
         result = match_cards([offer], [ref], exchange_rate=5.0)
         assert result[0].status == "approved"
 

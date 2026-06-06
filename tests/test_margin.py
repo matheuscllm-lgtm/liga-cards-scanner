@@ -36,7 +36,7 @@ class TestCalculateMargin:
 
 class TestIsApproved:
     def test_approved_when_above_both_thresholds(self):
-        assert is_approved(price_liga_brl=100.0, margin_percent=30.0) is True
+        assert is_approved(price_liga_brl=100.0, margin_percent=35.0) is True
 
     def test_rejected_when_margin_below_threshold(self):
         assert is_approved(price_liga_brl=100.0, margin_percent=20.0) is False
@@ -57,7 +57,7 @@ class TestIsApproved:
         assert is_approved(price_liga_brl=49.99, margin_percent=100.0) is False
 
     def test_rejected_just_below_margin_threshold(self):
-        assert is_approved(price_liga_brl=1000.0, margin_percent=24.99) is False
+        assert is_approved(price_liga_brl=1000.0, margin_percent=29.99) is False
 
     def test_custom_thresholds(self):
         # Critérios mais agressivos: preço >= 100, margem >= 50
@@ -70,4 +70,4 @@ class TestIsApproved:
 
     def test_default_thresholds_match_business_rules(self):
         assert MIN_PRICE_BRL == 50.0
-        assert MIN_MARGIN_PERCENT == 25.0
+        assert MIN_MARGIN_PERCENT == 30.0
