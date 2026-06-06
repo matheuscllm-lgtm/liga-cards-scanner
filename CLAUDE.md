@@ -79,3 +79,15 @@ src/reporting/
 - **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
 - **Doc drift no `README.md`**: as seções "Estrutura" e "Próximos passos" estão desatualizadas (ex.: o câmbio ao vivo via `auto` já existe; o diagrama de árvore não lista `pokemontcg.py`, `normalization.py`, `currency.py`, `xlsx.py`).
+
+---
+
+## 📤 Entrega de resultados — tabela na plataforma, NUNCA arquivo
+
+**Regra dura (operador, 2026-06-06). Vale para TODOS os scanners (CardTrader / MYP / Liga / sealed / PSA).**
+
+O resultado de um scan é entregue ao operador **como tabela no chat do Claude Code** — no **terminal ou no app**. **NÃO** entregar como arquivo `.xlsx`/`.csv` para download por padrão.
+
+- O scanner/postprocess **pode escrever** uma planilha local como subproduto de trabalho (gitignored) — tudo bem. O ponto é a **ENTREGA**: ela é a tabela na plataforma, não um anexo de arquivo.
+- Gerar/anexar arquivo **só quando o operador pedir explicitamente** (ex.: "me manda o XLSX pra importar em lote"). Sem pedido = sem arquivo.
+- A tabela traz **todos** os deals (não amostra curada) + as colunas relevantes da fonte.
