@@ -21,7 +21,7 @@ Se o usuário pedir pra continuar, quase certamente é um destes:
    dele (na última sessão preferiu deixar em draft).
 2. **Apagar as 14 branches órfãs** → **Issue #17** (manual; ver fim do arquivo).
 3. **Arquivar** o repositório duplicado `liga-arbitrage-scanner`.
-4. **Atualizar o `README.md`** (doc drift — ver seção de erros).
+4. ~~Atualizar o `README.md` (doc drift)~~ ✅ **feito** no próprio PR #18.
 5. (Opcional) Montar um `data/liga_offers.csv` real e rodar o caminho de
    produção ponta-a-ponta; melhorar o matcher; coletor real da Liga.
 
@@ -127,10 +127,10 @@ roda ponta a ponta no modo mock e gera JSON + CSV + XLSX.
   (sem permissão pro combined status). Contornado com `get_check_runs`, que funciona.
 - **`send_later` indisponível** → não dá pra agendar auto check-in do PR.
 
-**Doc drift a corrigir no `README.md`:** as seções "Estrutura" e "Próximos
-passos" estão desatualizadas (o câmbio ao vivo via `auto` **já existe**; o
-diagrama de árvore não lista `pokemontcg.py`, `normalization.py`, `currency.py`,
-`xlsx.py`).
+**Doc drift no `README.md`:** ✅ **corrigido** neste PR #18 — a árvore agora
+lista `pokemontcg.py`, `normalization.py` e `reporting/xlsx.py`; a saída
+documenta JSON+CSV+XLSX (eram dois); e "Próximos passos" não pede mais câmbio
+ao vivo (o modo `auto`/AwesomeAPI já existe).
 
 ---
 
@@ -140,7 +140,7 @@ diagrama de árvore não lista `pokemontcg.py`, `normalization.py`, `currency.py
    em sessões futuras). Aguardando decisão do usuário.
 2. **Issue #17** — apagar as 14 branches órfãs (manual; comando abaixo).
 3. **Arquivar** `liga-arbitrage-scanner`.
-4. **Corrigir o doc drift** do `README.md`.
+4. ~~Corrigir o doc drift do `README.md`~~ ✅ **feito** neste PR.
 5. (Opcional) `liga_offers.csv` real + caminho de produção; coletor real da
    Liga (robots.txt/rate limit); integração oficial TCGplayer; melhorar matcher
    (aliases de set, nomes PT↔EN, mais variantes).
