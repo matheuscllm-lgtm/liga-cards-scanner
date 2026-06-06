@@ -2,7 +2,7 @@
 
 Orientação para o Claude Code (e outros agentes) ao trabalhar neste repositório.
 
-> 🔄 **Retomando uma conversa?** Leia primeiro [`HANDOFF.md`](HANDOFF.md) —
+> 🔄 **Retomando uma conversa?** Leia primeiro [`HANDOFF_SCANNER_LIGA.md`](HANDOFF_SCANNER_LIGA.md) —
 > a memória da última sessão e exatamente onde retomar.
 
 ## Repository purpose
