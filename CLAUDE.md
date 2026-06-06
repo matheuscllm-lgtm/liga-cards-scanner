@@ -2,6 +2,9 @@
 
 Orientação para o Claude Code (e outros agentes) ao trabalhar neste repositório.
 
+> 🔄 **Retomando uma conversa?** Leia primeiro [`HANDOFF.md`](HANDOFF.md) —
+> a memória da última sessão e exatamente onde retomar.
+
 ## Repository purpose
 
 Scanner de **arbitragem de cards Pokémon**. Compara o preço de oferta na **Liga
