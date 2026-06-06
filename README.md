@@ -8,18 +8,23 @@ Pokémon e TCGplayer, com todos os valores convertidos para reais.
 Encontrar cards vendidos na Liga Pokémon com potencial de arbitragem em
 relação ao preço de referência do TCGplayer.
 
-## Critérios iniciais
+## Critérios
 
-- Margem mínima: 25%
+- Margem bruta mínima: 30%
 - Preço mínimo do card: R$50
 - Moeda de saída: BRL
 - Comparação: Liga Pokémon vs TCGplayer
 - Foco: cards individuais
 
+> **Margem BRUTA = só a diferença de preço entre o card na Liga e a referência
+> no TCGplayer.** O scanner NÃO desconta nenhuma taxa (frete, cartão, IOF, etc.).
+> Essas taxas você (operador) calcula por fora, à mão, depois de escolher o card.
+> O piso de R$50 é só um filtro de relevância (ignora cards baratos), não uma taxa.
+
 ## Fórmula de margem
 
 ```
-Margem (%) = ((Preço TCGplayer em BRL - Preço Liga Pokémon) / Preço Liga Pokémon) * 100
+Margem bruta (%) = ((Preço TCGplayer em BRL - Preço Liga Pokémon) / Preço Liga Pokémon) * 100
 ```
 
 ### Exemplo
@@ -31,7 +36,7 @@ Se um card custa R$80 na Liga Pokémon e o preço equivalente no TCGplayer
 Margem = ((110 - 80) / 80) * 100 = 37,5%
 ```
 
-Resultado: aprovado, pois a margem é maior que 25%.
+Resultado: aprovado, pois a margem bruta é maior que 30%.
 
 ## Estrutura
 

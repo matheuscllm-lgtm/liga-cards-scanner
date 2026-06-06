@@ -65,11 +65,11 @@ class TestRunMockMode:
         margins = [float(r["margin_percent"]) for r in rows]
         assert margins == sorted(margins, reverse=True)
 
-    def test_approved_count_uses_25_percent_threshold(self, tmp_reports):
+    def test_approved_count_uses_30_percent_threshold(self, tmp_reports):
         comparisons = main_module.run()
         for c in comparisons:
             if c.status == "approved":
-                assert c.margin_percent >= 25.0
+                assert c.margin_percent >= 30.0
                 assert c.price_liga_brl >= 50.0
 
 

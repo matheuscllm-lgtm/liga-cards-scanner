@@ -19,6 +19,7 @@ from src.collectors.liga_pokemon import fetch_offers
 from src.collectors.tcgplayer import fetch_reference_prices
 from src.matching.card_matcher import Comparison, match_cards
 from src.pricing.currency import get_exchange_rate
+from src.pricing.margin import MIN_MARGIN_PERCENT, MIN_PRICE_BRL
 
 REPORTS_DIR = _PROJECT_ROOT / "reports"
 
@@ -75,7 +76,10 @@ def _print_summary(items: list[Comparison], rate: float) -> None:
     approved = [c for c in items if c.status == "approved"]
     print(f"Câmbio USD->BRL utilizado: {rate:.4f}")
     print(f"Ofertas comparadas: {len(items)}")
-    print(f"Aprovadas (margem >= 25% e preço >= R$50): {len(approved)}")
+    print(
+        f"Aprovadas (margem bruta >= {MIN_MARGIN_PERCENT:.0f}% e "
+        f"preço >= R${MIN_PRICE_BRL:.0f}): {len(approved)}"
+    )
     print()
     header = (
         f"{'Card':<32} {'Set':<22} {'Liga R$':>10} "
