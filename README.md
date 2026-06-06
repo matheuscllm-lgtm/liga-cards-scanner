@@ -40,12 +40,16 @@ liga-pokemon-scanner/
 ├── src/
 │   ├── collectors/
 │   │   ├── liga_pokemon.py
+│   │   ├── pokemontcg.py
 │   │   └── tcgplayer.py
 │   ├── pricing/
 │   │   ├── currency.py
 │   │   └── margin.py
 │   ├── matching/
-│   │   └── card_matcher.py
+│   │   ├── card_matcher.py
+│   │   └── normalization.py
+│   ├── reporting/
+│   │   └── xlsx.py
 │   └── main.py
 ├── data/
 │   ├── liga_offers_mock.json
@@ -92,12 +96,13 @@ A taxa USD->BRL pode ser sobrescrita via variável de ambiente:
 LIGA_USD_BRL_RATE=5.35 python src/main.py
 ```
 
-Cada execução gera dois arquivos em `reports/`:
+Cada execução gera três arquivos em `reports/`:
 
 - `report_<timestamp>.json`
 - `report_<timestamp>.csv`
+- `report_<timestamp>.xlsx`
 
-ambos ordenados por maior margem.
+todos ordenados por maior margem.
 
 ## Modos do scanner
 
@@ -196,7 +201,6 @@ A lista priorizada inclui, para cada card:
 
 - Implementar coletor real da Liga Pokémon respeitando robots.txt e rate limits.
 - Integrar com a API oficial do TCGplayer (credenciais necessárias).
-- Buscar câmbio ao vivo (ex.: AwesomeAPI / BCB) em vez do fallback fixo.
 - Melhorar o matcher (normalização, aliases, sets em PT/EN).
 
 ## Status
