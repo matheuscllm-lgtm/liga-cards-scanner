@@ -228,6 +228,10 @@ data/tcgplayer_prices.csv
 data/liga_offers.csv
 data/cache/
 
+# Live collector runtime artifacts (checkpoint + block evidence)
+data/liga_live_state.json
+data/debug/
+
 # PowerShell runner artifacts
 logs/
 scanner.config
