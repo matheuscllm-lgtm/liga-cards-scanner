@@ -30,7 +30,7 @@ def run() -> list[Comparison]:
     liga = fetch_offers(source=liga_source)
     tcg_source = os.environ.get("LIGA_TCG_SOURCE", "mock")
     queries = (
-        [(o.card_name, o.set_name) for o in liga]
+        [(o.card_name, o.set_name, o.card_number) for o in liga]
         if tcg_source == "pokemontcg"
         else None
     )

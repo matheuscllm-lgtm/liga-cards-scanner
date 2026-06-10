@@ -1,5 +1,14 @@
 # HANDOFF · Scanner Liga Pokémon (retome por aqui)
 
+> **ATUALIZAÇÃO 2026-06-10 — COLETOR AO VIVO IMPLEMENTADO.** O stub acabou:
+> `src/collectors/liga_live.py` coleta o site de verdade com patchright +
+> Chrome headful (Cloudflare passa). Comando único:
+> `python src/collect_liga_live.py --sets PRE` (coleta → `data/liga_offers.csv`
+> → relatório). Checkpoint/resume, recycle a cada 40 cartas, NM exato na
+> célula dedicada, match por número de carta. 141 testes. Detalhes no
+> CLAUDE.md (seção "Coletor ao vivo"). O texto abaixo descreve o estado
+> anterior (sessão 2026-06-06) e segue válido para o resto do pipeline.
+
 > **Para o Claude da próxima sessão:** este é o arquivo de contexto/handoff do
 > projeto. É a memória da última conversa e o **ponto de retomada**. Leia ele
 > primeiro, junto com o [`CLAUDE.md`](CLAUDE.md) (manual técnico do repo). O

@@ -1,8 +1,12 @@
 """Casamento entre ofertas Liga e precos de referencia TCGplayer.
 
-Estrategia em duas camadas:
-1. Match exato pelo par (card_name, set_name) ja normalizado.
-2. Match fuzzy via difflib.SequenceMatcher, ponderando nome (0.7) e set
+Estrategia em tres camadas:
+1. Match exato por (card_name, set_name, card_number) normalizados —
+   so quando AMBOS os lados informam o numero da carta. E o match mais
+   forte: distingue versoes diferentes do mesmo nome no mesmo set
+   (ex.: Umbreon ex regular vs Special Illustration Rare na PRE).
+2. Match exato pelo par (card_name, set_name) ja normalizado.
+3. Match fuzzy via difflib.SequenceMatcher, ponderando nome (0.7) e set
    (0.3). Aceita se o score combinado >= FUZZY_MATCH_THRESHOLD.
 
 `Comparison.match_score` registra a confianca (1.0 = match exato).
@@ -87,6 +91,13 @@ def match_cards(
         _normalized_key(ref.card_name, ref.set_name): ref
         for ref in tcg_references
     }
+    # Indice por numero (camada 1): so refs que informam card_number.
+    index_by_number: dict[tuple[str, str, str], TCGReference] = {
+        (*_normalized_key(ref.card_name, ref.set_name),
+         getattr(ref, "card_number", "")): ref
+        for ref in tcg_references
+        if getattr(ref, "card_number", "")
+    }
 
     comparisons: list[Comparison] = []
     for offer in liga_offers:
@@ -101,7 +112,12 @@ def match_cards(
             continue
         offer_key = _normalized_key(offer.card_name, offer.set_name)
         score = 1.0
-        ref = index.get(offer_key)
+        ref = None
+        offer_number = getattr(offer, "card_number", "")
+        if offer_number:
+            ref = index_by_number.get((*offer_key, offer_number))
+        if ref is None:
+            ref = index.get(offer_key)
         if ref is None:
             ref, score = _find_best_fuzzy(offer_key, index, fuzzy_threshold)
             if ref is None:

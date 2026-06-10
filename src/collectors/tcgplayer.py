@@ -43,18 +43,21 @@ class TCGReference:
     set_name: str
     price_usd: float
     url: str = ""
+    card_number: str = ""  # numero no set (quando a fonte informa)
 
 
 def fetch_reference_prices(
     source: str = "mock",
     csv_path: str | Path | None = None,
-    queries: list[tuple[str, str]] | None = None,
+    queries: list[tuple] | None = None,
 ) -> list[TCGReference]:
     """Retorna precos TCGplayer em USD para as ofertas/queries.
 
     Para ``source='pokemontcg'``, ``queries`` deve ser uma lista de
-    pares ``(card_name, set_name)`` -- tipicamente derivada das ofertas
-    Liga via ``[(o.card_name, o.set_name) for o in liga_offers]``.
+    tuplas ``(card_name, set_name)`` ou ``(card_name, set_name,
+    card_number)`` -- tipicamente derivada das ofertas Liga. Com o
+    ``card_number`` presente, a busca casa a VERSAO exata da carta
+    (importante em sets com varias versoes do mesmo nome, ex. PRE).
     """
     if source == "mock":
         return _load_mock()
@@ -76,13 +79,19 @@ def fetch_reference_prices(
     )
 
 
-def _load_pokemontcg(queries: list[tuple[str, str]]) -> list[TCGReference]:
+def _load_pokemontcg(queries: list[tuple]) -> list[TCGReference]:
     # Import tardio: evita custo no caminho mock/csv que e o do CI.
     from src.collectors.pokemontcg import fetch_price
 
     refs: list[TCGReference] = []
-    for card_name, set_name in queries:
-        result = fetch_price(card_name, set_name)
+    for query in queries:
+        card_name, set_name = query[0], query[1]
+        card_number = query[2] if len(query) > 2 and query[2] else None
+        result = fetch_price(card_name, set_name, card_number=card_number)
+        if result is None and card_number:
+            # Fallback: a API pode discordar do numero (promo, sufixo).
+            # Tenta sem numero antes de desistir.
+            result = fetch_price(card_name, set_name)
         if result is None:
             logger.info(
                 "pokemontcg.io sem preco para %r / %r (pulado)",
@@ -96,6 +105,7 @@ def _load_pokemontcg(queries: list[tuple[str, str]]) -> list[TCGReference]:
                 set_name=result.set_name,
                 price_usd=result.price_usd,
                 url=result.url,
+                card_number=result.card_number,
             )
         )
     return refs
