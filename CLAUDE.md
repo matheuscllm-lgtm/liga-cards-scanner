@@ -27,29 +27,81 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-pytest -q                 # 106 testes
+pytest -q                 # 141 testes
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
+
+# SCAN AO VIVO (coleta o site de verdade + relatório completo, um comando):
+python src/collect_liga_live.py --sets PRE          # 1 set
+python src/collect_liga_live.py --sets PRE SSP JTG  # vários sets
+python src/collect_liga_live.py --sets PRE --resume # retoma scan que caiu
 ```
 
 Windows: `01_setup.ps1` -> `02_scan_liga.ps1` -> `03_scan_real.ps1` (ver `INSTALL_WINDOWS.md`).
+
+## Coletor ao vivo (src/collectors/liga_live.py)
+
+A Liga bloqueia clientes não-browser (403/Cloudflare). O coletor ao vivo
+usa **patchright + Google Chrome HEADFUL** (janela visível — headless é
+barrado pelo Cloudflare). Pontos-chave:
+
+- **Perfil próprio e isolado**: `~/.pw_profile_liga_singles` — não briga
+  com o Chrome do dia a dia nem com outros scanners headful (COMC, sealed).
+- **NM-only é invariante dura**: condição lida da célula dedicada
+  (`div.quality` com classe `quality_nm`) com match EXATO `== "NM"`.
+  NUNCA substring na linha (já vazou SP no passado).
+- **EN estrito**: `div.lang img[title] == "Inglês"` — combo "Português /
+  Inglês" NÃO conta.
+- **Filtro "Inglês" é OBRIGATÓRIO** (armadilha nº 1, descoberta no smoke
+  2026-06-10): a página da carta só carrega ~16 vendedores no load
+  inicial, ordenados por preço — em carta dominada por PT, NENHUM EN
+  aparece. O coletor clica o checkbox `input#field_5_1` pra o site
+  carregar as ofertas EN via AJAX.
+- **Preço anti-scraping** (armadilha nº 2): as linhas carregadas via AJAX
+  NÃO têm o preço como texto — cada dígito é um `<div>` com classe
+  ofuscada apontando pra um sprite JPG. O coletor decodifica por template
+  matching (pillow+numpy, templates em `data/liga_digit_templates/`,
+  herdados do scanner de selados; ground truth validado por screenshot).
+  Se um dígito não decodificar, a carta é pulada com aviso
+  (`preco_nao_decodificado`) — preço NUNCA é inventado.
+- **"Extra: Foil" NÃO exclui**: em carta chase (SIR/secret) todos os
+  vendedores marcam Foil (a carta só existe em foil). O lado TCG já casa a
+  versão certa (busca por número + prioridade holofoil).
+- **Pré-filtro do piso**: a listagem mostra a faixa de preço de cada carta
+  (`avgp-minprc`/`avgp-maxprc`); se o máximo < R$50 a página da carta nem
+  é visitada.
+- **Infinite scroll** (listagem e vendedores): rola até a contagem de
+  elementos estabilizar por 3 rodadas.
+- **Recycle**: o Chrome é fechado/reaberto a cada ~40 páginas de carta
+  (sessões longas degradam — lição do protótipo).
+- **Checkpoint**: progresso em `data/liga_live_state.json`; `--resume`
+  continua de onde parou.
+- **Coletor honesto**: bloqueio/DOM mudado → salva HTML+screenshot em
+  `data/debug/` e levanta `LigaBlockedError`/`LigaDomChangedError`.
+  NUNCA inventa preço.
 
 ## Modos (variáveis de ambiente)
 
 | Variável | Default | Valores |
 |---|---|---|
 | `LIGA_USD_BRL_RATE` | `5.20` | float / `auto` (cotação ao vivo AwesomeAPI, fallback 5.20) |
-| `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `http` (stub) |
-| `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path — header `card_name,set_name,price_brl,url[,condition,seller]` |
+| `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `live` (coleta ao vivo) / `http` (stub) |
+| `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path — header `card_name,set_name,price_brl,url[,condition,seller,card_number]` |
+| `LIGA_SETS` | — | códigos de set p/ `live` via env (ex. `PRE,SSP`); a CLI `collect_liga_live.py` é o caminho preferido |
 | `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `pokemontcg` / `api` (stub) |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path — header `card_name,set_name,market_price_usd[,url]` |
 | `LIGA_POKEMONTCG_CACHE_DIR` | `data/cache/pokemontcg` | path / vazio (desabilita cache) |
 
-Caminho de produção (você fornece só as ofertas; o preço TCG vem automático):
+Caminho de produção manual (você fornece só as ofertas; o preço TCG vem automático):
 
 ```bash
 LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
 ```
+
+O scanner integrado (`C:\Users\mathe\integrated-scanner`) consome exatamente
+esse caminho: ele roda `src/main.py` com `LIGA_OFFERS_SOURCE=csv` se existir
+`data/liga_offers.csv` real — que é o arquivo que `collect_liga_live.py`
+gera. Fluxo: coletar ao vivo aqui → integrado lê sozinho.
 
 Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no `.gitignore`.
 
@@ -57,12 +109,14 @@ Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no `.gitignore`
 
 ```
 src/main.py              Pipeline: rate -> ofertas Liga -> refs TCG -> match -> reports (JSON+CSV+XLSX) -> resumo no stdout
+src/collect_liga_live.py CLI do scan ao vivo: coleta -> data/liga_offers.csv -> relatório completo
 src/collectors/
-  liga_pokemon.py        fetch_offers(source) -> LigaOffer.  mock | csv | http(stub 403)
+  liga_pokemon.py        fetch_offers(source) -> LigaOffer.  mock | csv | live | http(stub 403)
+  liga_live.py           coletor AO VIVO (patchright + Chrome headful): parsers puros + sessão com recycle + checkpoint
   tcgplayer.py           fetch_reference_prices(source, queries) -> TCGReference.  mock | csv | pokemontcg | api(stub)
   pokemontcg.py          fetch_price() — cliente pokemontcg.io: cache em disco 24h + retry backoff (1/2/4s); escolhe a variante de menor market price
 src/matching/
-  card_matcher.py        match_cards() -> Comparison.  exato (chave normalizada) -> fuzzy difflib (nome .7 / set .3, thr .85); ordena por margem
+  card_matcher.py        match_cards() -> Comparison.  exato por número -> exato (chave normalizada) -> fuzzy difflib (nome .7 / set .3, thr .85); ordena por margem
   normalization.py       lowercase, remove acento, aliases de set (obf -> obsidian flames...), VMAX/VSTAR/VUNION
 src/pricing/
   currency.py            get_exchange_rate() (fixo / auto); convert_usd_to_brl()

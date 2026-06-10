@@ -116,7 +116,7 @@ O scanner alterna fonte de dados via variáveis de ambiente. Default: tudo mock.
 | Variável | Default | Valores | Efeito |
 |---|---|---|---|
 | `LIGA_USD_BRL_RATE` | `5.20` | float / `auto` | Taxa USD→BRL. `auto` busca cotação ao vivo na AwesomeAPI com fallback para 5.20. |
-| `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `http` | Fonte das ofertas Liga Pokémon. |
+| `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `live` / `http` | Fonte das ofertas Liga Pokémon (`live` = coleta ao vivo com Chrome). |
 | `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path | Caminho do CSV quando `LIGA_OFFERS_SOURCE=csv`. |
 | `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `pokemontcg` / `api` | Fonte das referências TCGplayer. |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path | Caminho do CSV quando `LIGA_TCG_SOURCE=csv`. |
@@ -182,11 +182,27 @@ respeitar rate limit. Cards com várias versões no mesmo set (regular,
 full art) são desambiguados pegando a de menor preço de mercado
 (assume Liga vende a regular).
 
+### Modo `live` (coleta ao vivo da Liga — o caminho completo)
+
+Coleta o site de verdade com **Google Chrome headful** (janela visível)
+controlado por `patchright`. Comando único que coleta E gera o relatório:
+
+```bash
+python src/collect_liga_live.py --sets PRE          # 1 set
+python src/collect_liga_live.py --sets PRE SSP JTG  # vários
+python src/collect_liga_live.py --sets PRE --resume # retoma scan que caiu
+```
+
+Filtra EN + NM exato, decodifica o preço anti-scraping da Liga, salva
+checkpoint pra retomar, e grava `data/liga_offers.csv` (o mesmo que o
+scanner integrado consome). Detalhes técnicos no `CLAUDE.md` (seção
+"Coletor ao vivo").
+
 ### Modos `http` (Liga) e `api` (TCGplayer)
 
-Stubs que levantam `NotImplementedError`. Liga retorna 403 para clientes
-não-browser, e o brief proíbe burlar bloqueios. TCGplayer exige
-credenciais oficiais. Ambos ficam para depois do MVP.
+Stubs que levantam `NotImplementedError`. `http` (urllib puro) nunca vai
+funcionar — a Liga retorna 403 para clientes não-browser; use o modo
+`live`. TCGplayer oficial exige credenciais.
 
 ## Saída esperada
 
@@ -204,10 +220,13 @@ A lista priorizada inclui, para cada card:
 
 ## Próximos passos
 
-- Implementar coletor real da Liga Pokémon respeitando robots.txt e rate limits.
 - Integrar com a API oficial do TCGplayer (credenciais necessárias).
 - Melhorar o matcher (normalização, aliases, sets em PT/EN).
+- Ampliar o mapa de sets do coletor ao vivo (`ED_SETS` em
+  `src/collectors/liga_live.py`) conforme novos lançamentos.
 
 ## Status
 
-Projeto em desenvolvimento. Coletores rodam com dados mockados em `data/`.
+Funcional ponta a ponta: coletor AO VIVO da Liga (Chrome headful) +
+preços reais do TCGplayer via pokemontcg.io. O modo mock continua sendo
+o default (CI/testes).
