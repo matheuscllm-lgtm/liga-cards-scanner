@@ -1,4 +1,14 @@
-# O scanner usa apenas a stdlib (urllib) para HTTP + openpyxl para o XLSX.
-# requests/beautifulsoup4/lxml foram removidos por nao serem usados (o modo
-# de scraping HTTP da Liga e um stub; se for implementado, readiciona-los aqui).
+# Pipeline (relatorio): stdlib (urllib) para HTTP + openpyxl para o XLSX.
 openpyxl>=3.1.0
+
+# Coletor AO VIVO da Liga (src/collectors/liga_live.py):
+# - patchright: Playwright "anti-detect" que controla o Google Chrome real
+#   (headful) e passa o Cloudflare da Liga. Requer Chrome instalado.
+# - beautifulsoup4: parser do HTML das paginas (usa o html.parser da stdlib;
+#   nao precisa de lxml).
+patchright>=1.60
+beautifulsoup4>=4.12
+# - pillow + numpy: decodificam o preco anti-scraping da Liga (cada digito
+#   e uma imagem; template matching com data/liga_digit_templates/).
+pillow>=10
+numpy>=1.26
