@@ -19,7 +19,6 @@ from src.collectors.liga_pokemon import fetch_offers
 from src.collectors.tcgplayer import fetch_reference_prices
 from src.matching.card_matcher import Comparison, match_cards
 from src.pricing.currency import get_exchange_rate
-from src.pricing.margin import MIN_MARGIN_PERCENT, MIN_PRICE_BRL
 
 REPORTS_DIR = _PROJECT_ROOT / "reports"
 
@@ -73,26 +72,15 @@ def _write_xlsx(items: list[Comparison], path: Path) -> None:
 
 
 def _print_summary(items: list[Comparison], rate: float) -> None:
-    approved = [c for c in items if c.status == "approved"]
-    print(f"Câmbio USD->BRL utilizado: {rate:.4f}")
-    print(f"Ofertas comparadas: {len(items)}")
-    print(
-        f"Aprovadas (margem bruta >= {MIN_MARGIN_PERCENT:.0f}% e "
-        f"preço >= R${MIN_PRICE_BRL:.0f}): {len(approved)}"
-    )
-    print()
-    header = (
-        f"{'Card':<32} {'Set':<22} {'Liga R$':>10} "
-        f"{'TCG R$':>10} {'Margem':>8}  Status"
-    )
-    print(header)
-    print("-" * len(header))
-    for c in items:
-        print(
-            f"{c.card_name[:31]:<32} {c.set_name[:21]:<22} "
-            f"{c.price_liga_brl:>10.2f} {c.price_tcg_brl:>10.2f} "
-            f"{c.margin_percent:>7.2f}%  {c.status}"
-        )
+    """Imprime a ENTREGA canonica: a tabela markdown (terminal/chat).
+
+    A entrega de um scan e SEMPRE esta tabela markdown — com links
+    clicaveis (oferta na Liga + referencia de preco TCG), Carta = nome +
+    numero, e TODOS os deals (nao amostra). NUNCA montar a mao; usar
+    sempre este gerador. Os arquivos em reports/ sao subproduto local.
+    """
+    from src.reporting.markdown import build_markdown
+    print(build_markdown(items, rate))
 
 
 if __name__ == "__main__":

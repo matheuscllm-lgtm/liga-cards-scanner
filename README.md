@@ -204,19 +204,26 @@ Stubs que levantam `NotImplementedError`. `http` (urllib puro) nunca vai
 funcionar — a Liga retorna 403 para clientes não-browser; use o modo
 `live`. TCGplayer oficial exige credenciais.
 
-## Saída esperada
+## Saída / entrega
 
-A lista priorizada inclui, para cada card:
+**A entrega de um scan é uma tabela markdown impressa no chat — nunca um
+arquivo por padrão.** Toda execução (`src/main.py` ou
+`src/collect_liga_live.py`) imprime essa tabela no fim, gerada por
+`src/reporting/markdown.py` (`build_markdown`). Copie a tabela impressa;
+não monte uma à mão. Colunas:
 
-- Nome do card
-- Set
-- Preço na Liga Pokémon (R$)
-- Preço de referência no TCGplayer (USD e BRL)
-- Margem estimada (%)
-- Câmbio utilizado na conversão
-- Link da oferta na Liga Pokémon
-- Link de referência no TCGplayer
-- Status: `approved` ou `rejected`
+`Carta (nome + número) | Set | Liga R$ | Ref TCG R$ | Ref TCG US$ |
+Margem % | Status | Links | Nota`
+
+- **Links** = `[oferta](url) · [referência de preço](url)`, clicáveis e
+  verificáveis (os dois lados: Liga + TCGplayer).
+- **Nota** marca deals de match fuzzy como `validar manualmente`.
+- Mostra **todos** os deals (aprovados e rejeitados), ordenados por margem.
+
+Os arquivos `reports/report_<timestamp>.{json,csv,xlsx}` continuam sendo
+gerados como subproduto local (apoio); só anexe um arquivo se o operador
+pedir explicitamente. A regra completa está no `CLAUDE.md` (seção
+"Entrega de resultados").
 
 ## Próximos passos
 

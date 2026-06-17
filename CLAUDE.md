@@ -27,7 +27,7 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-pytest -q                 # 141 testes
+pytest -q                 # 158 testes
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 
@@ -116,13 +116,14 @@ src/collectors/
   tcgplayer.py           fetch_reference_prices(source, queries) -> TCGReference.  mock | csv | pokemontcg | api(stub)
   pokemontcg.py          fetch_price() — cliente pokemontcg.io: cache em disco 24h + retry backoff (1/2/4s); escolhe a variante de menor market price
 src/matching/
-  card_matcher.py        match_cards() -> Comparison.  exato por número -> exato (chave normalizada) -> fuzzy difflib (nome .7 / set .3, thr .85); ordena por margem
+  card_matcher.py        match_cards() -> Comparison.  exato por número -> exato (chave normalizada) -> fuzzy difflib (nome .7 / set .3, thr .85); ordena por margem. Comparison carrega card_number (p/ a coluna Carta) + match_score (fuzzy => "validar manualmente")
   normalization.py       lowercase, remove acento, aliases de set (obf -> obsidian flames...), VMAX/VSTAR/VUNION
 src/pricing/
   currency.py            get_exchange_rate() (fixo / auto); convert_usd_to_brl()
   margin.py              calculate_margin(); is_approved().  MIN_MARGIN=30% (bruta, sem taxa), MIN_PRICE=R$50
 src/reporting/
-  xlsx.py                write_xlsx() — header colorido, formato moeda/%, tinta por status, hyperlinks, freeze panes, autofilter
+  markdown.py            build_markdown() — a ENTREGA canonica (tabela markdown c/ links clicaveis). main.py imprime isto no fim.
+  xlsx.py                write_xlsx() — header colorido, formato moeda/%, tinta por status, hyperlinks, freeze panes, autofilter (subproduto local)
 ```
 
 ## Convenções e gotchas
@@ -135,6 +136,12 @@ src/reporting/
 
 ## Estado e pendências
 
+- **Entrega canônica em tabela markdown (2026-06-17)**: `src/reporting/markdown.py`
+  (`build_markdown`) virou a saída de entrega; `main.py` o imprime no fim de
+  todo scan (substituiu a tabela de texto fixo). `Comparison` agora carrega
+  `card_number` (coluna Carta = nome + número) e a célula de Links é clicável
+  (`[oferta](url) · [referência de preço](url)`). Match fuzzy → nota
+  "validar manualmente". 158 testes (10 novos em `tests/test_markdown.py`).
 - `main` funcional, 106 testes, CI verde. PRs #15 e #16 já mergeados.
 - **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
@@ -142,12 +149,36 @@ src/reporting/
 
 ---
 
-## 📤 Entrega de resultados — tabela na plataforma, NUNCA arquivo
+## 📤 Entrega de resultados — tabela markdown no chat, NUNCA arquivo (MANDATÓRIO)
 
 **Regra dura (operador, 2026-06-06). Vale para TODOS os scanners (CardTrader / MYP / Liga / sealed / PSA).**
 
-O resultado de um scan é entregue ao operador **como tabela no chat do Claude Code** — no **terminal ou no app**. **NÃO** entregar como arquivo `.xlsx`/`.csv` para download por padrão.
+O resultado de um scan é entregue ao operador **como tabela markdown no chat do Claude Code** — no **terminal ou no app**. **NÃO** entregar como arquivo `.xlsx`/`.csv` para download por padrão.
 
-- O scanner/postprocess **pode escrever** uma planilha local como subproduto de trabalho (gitignored) — tudo bem. O ponto é a **ENTREGA**: ela é a tabela na plataforma, não um anexo de arquivo.
-- Gerar/anexar arquivo **só quando o operador pedir explicitamente** (ex.: "me manda o XLSX pra importar em lote"). Sem pedido = sem arquivo.
-- A tabela traz **todos** os deals (não amostra curada) + as colunas relevantes da fonte.
+### A entrega é SEMPRE gerada pela ferramenta do repo — nunca montada à mão
+
+A tabela de entrega é produzida por **`src/reporting/markdown.py` (`build_markdown`)**, que o `src/main.py` imprime automaticamente no fim de todo scan. **NÃO** transcrever números do CSV/JSON/XLSX para uma tabela escrita na mão — isso introduz erro e perde colunas. Sempre rode o pipeline e copie a tabela que ele imprime:
+
+```bash
+# scan ao vivo (coleta + relatório + imprime a tabela markdown):
+python src/collect_liga_live.py --sets PRE
+
+# a partir de um CSV de ofertas já coletado (imprime a mesma tabela):
+LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
+```
+
+(No Windows use `.venv\Scripts\python.exe`. Esses comandos foram verificados nesta sessão — `python src/main.py` em modo mock também imprime a tabela.)
+
+### Colunas canônicas da tabela (o que `build_markdown` emite)
+
+`Carta | Set | Liga R$ | Ref TCG R$ | Ref TCG US$ | Margem % | Status | Links | Nota`
+
+- **Carta** = nome **+ número** do card (ex. `Umbreon ex #161`). O número vem de `Comparison.card_number` (preenchido pelo matcher a partir da oferta Liga ou da ref TCG); sem número, só o nome.
+- **Links** = `[oferta](url) · [referência de preço](url)` — **clicáveis e verificáveis**, SEMPRE os dois lados (a oferta na Liga e a referência de preço no TCGplayer).
+- **Nota** = deals com match fuzzy (`match_score < 1.0`) saem marcados **`validar manualmente`** — o operador confere a versão exata da carta antes de decidir.
+- Mostra **TODOS** os deals comparados (aprovados **e** rejeitados), ordenados por margem — não é amostra curada.
+
+### Arquivo só sob pedido explícito
+
+- O scanner **pode escrever** `reports/report_*.{json,csv,xlsx}` como subproduto local (gitignorado/efêmero) — tudo bem. O ponto é a **ENTREGA**: ela é a tabela markdown no chat, não um anexo.
+- Gerar/anexar arquivo (`SendUserFile`) **só quando o operador pedir explicitamente** (ex.: "me manda o XLSX pra importar em lote"). Sem pedido = sem arquivo.
