@@ -48,6 +48,7 @@ class Comparison:
     tcg_url: str
     status: str
     match_score: float = 1.0
+    card_number: str = ""  # numero da carta no set (ex. "156"); p/ a coluna Carta
 
 
 def _normalized_key(card_name: str, set_name: str) -> tuple[str, str]:
@@ -139,6 +140,8 @@ def match_cards(
                 tcg_url=ref.url,
                 status="approved" if approved else "rejected",
                 match_score=round(score, 3),
+                # Numero da carta: prefere o da oferta Liga; cai pro da ref TCG.
+                card_number=offer_number or getattr(ref, "card_number", ""),
             )
         )
 
