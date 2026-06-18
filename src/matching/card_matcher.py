@@ -30,7 +30,7 @@ from src.pricing.margin import (
 
 logger = logging.getLogger(__name__)
 
-FUZZY_MATCH_THRESHOLD = 0.85
+FUZZY_MATCH_THRESHOLD = 0.82
 NAME_WEIGHT = 0.7
 SET_WEIGHT = 0.3
 
@@ -55,12 +55,42 @@ def _normalized_key(card_name: str, set_name: str) -> tuple[str, str]:
     return (normalize_card_name(card_name), normalize_set_name(set_name))
 
 
+def _token_set_similarity(a: str, b: str) -> float:
+    """Similaridade por conjunto de tokens (palavras): |interseccao| / max(|A|,|B|).
+
+    Robusta a reordenacao e a um lado ser subconjunto do outro — onde o difflib
+    de caracteres falha (ex.: "151" vs "scarlet & violet 151", ou "scarlet violet"
+    sem o "&")."""
+    ta, tb = set(a.split()), set(b.split())
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / max(len(ta), len(tb))
+
+
+def _containment_bonus(a: str, b: str) -> float:
+    """Bonus pequeno quando os tokens de um lado sao subconjunto do outro
+    (codigo curto contido no nome completo)."""
+    ta, tb = set(a.split()), set(b.split())
+    if ta and tb and (ta <= tb or tb <= ta):
+        return 0.1
+    return 0.0
+
+
+def _field_score(a: str, b: str) -> float:
+    """Score de um campo (nome ou set) em [0,~1.1]: media de difflib (erro de
+    digitacao) com token-set (reordenacao/subconjunto), mais o bonus de
+    containment. Misturar os dois generaliza melhor que difflib puro."""
+    diff = difflib.SequenceMatcher(None, a, b).ratio()
+    token = _token_set_similarity(a, b)
+    return (diff + token) / 2 + _containment_bonus(a, b)
+
+
 def _combined_score(
     offer_key: tuple[str, str], cand_key: tuple[str, str]
 ) -> float:
-    name_score = difflib.SequenceMatcher(None, offer_key[0], cand_key[0]).ratio()
-    set_score = difflib.SequenceMatcher(None, offer_key[1], cand_key[1]).ratio()
-    return NAME_WEIGHT * name_score + SET_WEIGHT * set_score
+    name_score = _field_score(offer_key[0], cand_key[0])
+    set_score = _field_score(offer_key[1], cand_key[1])
+    return min(1.0, NAME_WEIGHT * name_score + SET_WEIGHT * set_score)
 
 
 def _find_best_fuzzy(
