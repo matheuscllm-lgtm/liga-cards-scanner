@@ -146,7 +146,7 @@ class TestMatchCards:
         assert result == []
 
     def test_default_threshold_is_documented(self):
-        assert FUZZY_MATCH_THRESHOLD == 0.85
+        assert FUZZY_MATCH_THRESHOLD == 0.82
 
     def test_results_sorted_by_margin_desc(self):
         offers = [

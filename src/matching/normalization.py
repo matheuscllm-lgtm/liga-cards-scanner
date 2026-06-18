@@ -23,6 +23,19 @@ SET_ALIASES: dict[str, str] = {
     "pal": "paldea evolved",
     "sv": "scarlet & violet",
     "s&v": "scarlet & violet",
+    "svi": "scarlet & violet",
+    # Codigos reais de sets SV/SWSH vistos na Liga (expansao 2026-06-18).
+    "pre": "prismatic evolutions",
+    "ssp": "surging sparks",
+    "jtg": "journey together",
+    "twm": "twilight masquerade",
+    "scr": "stellar crown",
+    "sfa": "shrouded fable",
+    "paf": "paldean fates",
+    "par": "paradox rift",
+    "tef": "temporal forces",
+    "151": "scarlet & violet 151",
+    "mew": "scarlet & violet 151",
 }
 
 
@@ -35,6 +48,12 @@ def normalize_text(s: str) -> str:
     if not s:
         return ""
     s = _strip_accents(s).lower()
+    # Remove pontuacao (pontos, apostrofos, hifens, virgulas...) que so atrapalha
+    # o matching: "Mr. Mime" == "Mr Mime", "Professor's Research" == "Professors
+    # Research". Mantem o "&" porque ele faz parte de nomes de set canonicos
+    # ("Scarlet & Violet") e dos aliases (s&v) — tira-lo dessincronizaria o alias
+    # do nome completo.
+    s = re.sub(r"[^\w\s&]", "", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
