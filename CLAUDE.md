@@ -2,8 +2,9 @@
 
 Orientação para o Claude Code (e outros agentes) ao trabalhar neste repositório.
 
-> 🔄 **Retomando uma conversa?** Leia primeiro [`HANDOFF_SCANNER_LIGA.md`](HANDOFF_SCANNER_LIGA.md) —
-> a memória da última sessão e exatamente onde retomar.
+> 🔄 **Retomando uma conversa?** As notas de handoff/sessão são mantidas
+> **localmente** (fora do repositório, por higiene de release público). Este
+> `CLAUDE.md` é o manual técnico canônico do repo.
 
 ## Repository purpose
 

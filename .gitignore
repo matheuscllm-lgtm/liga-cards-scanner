@@ -235,3 +235,20 @@ data/debug/
 # PowerShell runner artifacts
 logs/
 scanner.config
+
+# ── Public-release hygiene (2026-06-18): keep strategy/deal artifacts OUT ──
+# Internal handoffs and session notes are operational data, not code. They
+# reveal which sets profit, margins and findings — keep them local only.
+HANDOFF_SCANNER_LIGA.md
+HANDOFF*.md
+*handoff*.md
+docs/RESUMO-*.md
+docs/handoff*.md
+# Ad-hoc run logs / output (deal + validation data — local only)
+data/*.log
+*.log
+runs/
+validate_*.py
+# Browser profile (lives in HOME, but guard against a local copy landing here)
+.pw_profile_liga_singles/
+**/pw_profile_*/
