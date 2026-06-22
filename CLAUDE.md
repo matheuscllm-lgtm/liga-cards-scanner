@@ -164,6 +164,14 @@ src/reporting/
 - `main` funcional, 106 testes, CI verde. PRs #15 e #16 já mergeados.
 - **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
+- **README.md é minimalista DE PROPÓSITO** (release público discreto — espelha o
+  template do CardTrader/COMC): título neutro `price-compare-tool`, sem
+  Pokémon/Liga/TCG/arbitragem nem árvore de arquitetura. **NÃO "consertar"
+  re-adicionando seções "Estrutura"/"Próximos passos"** — isso reexporia o caso
+  de uso e regrediria a discrição do release público. A doc técnica canônica
+  (arquitetura, módulos, fluxo) é **este `CLAUDE.md`**, não o README. *(A antiga
+  pendência de "doc drift no README" foi resolvida por essa sanitização — as
+  seções desatualizadas deixaram de existir.)*
 
 ---
 
