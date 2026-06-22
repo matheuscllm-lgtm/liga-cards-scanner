@@ -226,7 +226,12 @@ reports/*.xlsx
 # Real CSV with prices/offers (use the .example.csv as template)
 data/tcgplayer_prices.csv
 data/liga_offers.csv
+data/liga_offers_*.csv
 data/cache/
+
+# TCG reference-resolver outputs (resolve_refs.py session artifacts — deal/price data, local only)
+data/asc_ref.json
+data/refs_*.json
 
 # Live collector runtime artifacts (checkpoint + block evidence)
 data/liga_live_state.json
