@@ -42,6 +42,37 @@ DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_BACKOFF_BASE = 1.0
 
 
+def _clean_secret(value: str | None) -> str | None:
+    """Sanitiza um segredo (API key) lido do ambiente — padrao da frota.
+
+    Remove BOM (U+FEFF), zero-width space (U+200B) e espacos/quebras nas
+    pontas. Headers HTTP sao codificados em latin-1 pelo urllib; um BOM colado
+    por engano na chave (arquivo salvo como UTF-8-with-BOM, copy/paste do site)
+    vira ``UnicodeEncodeError: 'latin-1' codec can't encode '\ufeff'`` e derruba
+    100% das chamadas. ``str.strip()`` NAO remove BOM (nao e whitespace pra
+    Python), entao tratamos explicitamente. Retorna ``None`` se sobrar vazio
+    (chave ausente -> nenhum header, requisicao anonima segue funcionando).
+    """
+    if value is None:
+        return None
+    cleaned = value.replace("\ufeff", "").replace("\u200b", "").strip()
+    return cleaned or None
+
+
+def _build_headers(user_agent: str) -> dict[str, str]:
+    """Monta os headers do request, anexando ``X-Api-Key`` apenas se a chave
+    ``POKEMONTCG_API_KEY`` estiver presente (e limpa) no ambiente.
+
+    Sem a chave, retorna so User-Agent + Accept — a API e publica e responde
+    anonimamente (rate limit mais apertado). Com a chave, o rate limit sobe.
+    """
+    headers = {"User-Agent": user_agent, "Accept": "application/json"}
+    api_key = _clean_secret(os.environ.get("POKEMONTCG_API_KEY"))
+    if api_key:
+        headers["X-Api-Key"] = api_key
+    return headers
+
+
 @dataclass
 class PokemonTCGResult:
     card_name: str
@@ -108,7 +139,7 @@ def _http_get(
 ) -> dict | None:
     params = urllib.parse.urlencode({"q": query, "pageSize": 10})
     url = f"{API_BASE}?{params}"
-    headers = {"User-Agent": user_agent, "Accept": "application/json"}
+    headers = _build_headers(user_agent)
 
     for attempt in range(1, retry_attempts + 1):
         try:

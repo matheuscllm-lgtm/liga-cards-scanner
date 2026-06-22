@@ -5,9 +5,15 @@ from unittest.mock import patch
 
 from src.collectors.pokemontcg import (
     PokemonTCGResult,
+    _build_headers,
+    _clean_secret,
     _pick_best,
     fetch_price,
 )
+
+# Escapes (nunca literais invisiveis no fonte): U+FEFF = BOM, U+200B = ZWSP.
+_BOM = "\ufeff"
+_ZWSP = "\u200b"
 
 
 def _fake_response(payload):
@@ -231,3 +237,73 @@ class TestRetry:
             r = fetch_price("X", "S", delay_after=0, cache_dir=None, retry_attempts=3)
         assert r is None
         assert len(attempts) == 1  # nao retentou
+
+
+class TestCleanSecret:
+    """_clean_secret: sanitiza BOM/zero-width/whitespace; vazio -> None."""
+
+    def test_strips_bom_and_zero_width_and_whitespace(self):
+        assert _clean_secret(_BOM + "abc123") == "abc123"
+        assert _clean_secret(_ZWSP + "abc123") == "abc123"
+        assert _clean_secret(_BOM + "  abc123  \n") == "abc123"
+        assert _clean_secret("  abc123\n") == "abc123"
+
+    def test_none_and_empty_after_clean_return_none(self):
+        assert _clean_secret(None) is None
+        assert _clean_secret("") is None
+        assert _clean_secret("   ") is None
+        # So-BOM / so-zero-width nao viram header invalido.
+        assert _clean_secret(_BOM) is None
+        assert _clean_secret(_ZWSP + _BOM) is None
+
+    def test_preserves_clean_value(self):
+        assert _clean_secret("deadbeef-1234") == "deadbeef-1234"
+
+
+class TestApiKeyHeader:
+    """X-Api-Key so e anexado quando POKEMONTCG_API_KEY esta presente/limpa.
+
+    Sem rede: testa a construcao do header diretamente via _build_headers.
+    Comportamento anonimo (sem chave) tem de continuar valido — CI roda sem
+    a chave e nao pode quebrar.
+    """
+
+    def test_no_api_key_header_when_env_unset(self, monkeypatch):
+        monkeypatch.delenv("POKEMONTCG_API_KEY", raising=False)
+        headers = _build_headers("ua/1.0")
+        assert "X-Api-Key" not in headers
+        assert headers["User-Agent"] == "ua/1.0"
+        assert headers["Accept"] == "application/json"
+
+    def test_no_api_key_header_when_env_empty_or_invisible(self, monkeypatch):
+        for blank in ("", "   ", _BOM, _ZWSP, _ZWSP + _BOM + "  "):
+            monkeypatch.setenv("POKEMONTCG_API_KEY", blank)
+            headers = _build_headers("ua/1.0")
+            assert "X-Api-Key" not in headers, f"blank={blank!r} nao deveria virar header"
+
+    def test_api_key_header_present_and_clean(self, monkeypatch):
+        monkeypatch.setenv("POKEMONTCG_API_KEY", "my-secret-key-1234")
+        headers = _build_headers("ua/1.0")
+        assert headers["X-Api-Key"] == "my-secret-key-1234"
+
+    def test_bom_prefixed_key_is_cleaned_and_latin1_encodable(self, monkeypatch):
+        # Chave salva como UTF-8-with-BOM / copy-paste do site: BOM + zero-width.
+        monkeypatch.setenv("POKEMONTCG_API_KEY", _BOM + " my-secret-key-1234 " + _ZWSP)
+        headers = _build_headers("ua/1.0")
+        value = headers["X-Api-Key"]
+        assert value == "my-secret-key-1234"
+        # Headers HTTP sao codificados em latin-1 pelo urllib: o BOM cru
+        # (U+FEFF) lancaria UnicodeEncodeError. Limpo, codifica sem erro.
+        assert value.encode("latin-1") == b"my-secret-key-1234"
+
+    def test_built_request_carries_clean_header(self, monkeypatch):
+        # Constroi o Request de verdade (sem rede) e confere o header montado.
+        import urllib.request
+
+        monkeypatch.setenv("POKEMONTCG_API_KEY", _BOM + "abc-key-789")
+        req = urllib.request.Request(
+            "https://api.pokemontcg.io/v2/cards", headers=_build_headers("ua/1.0")
+        )
+        # urllib normaliza chaves de header para Capitalized.
+        assert req.get_header("X-api-key") == "abc-key-789"
+        req.get_header("X-api-key").encode("latin-1")  # nao levanta
