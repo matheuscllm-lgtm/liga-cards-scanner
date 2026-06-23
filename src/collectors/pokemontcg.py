@@ -7,8 +7,12 @@ A API expoe precos de mercado TCGplayer indiretamente (via campo
 
 Para cards com varias versoes no mesmo set (regular, full art, etc),
 aceitar `card_number` desambigua. Sem `card_number`, a estrategia
-default e pegar a versao com menor `market` (assumindo que o vendedor
-da Liga lista a regular, nao a alt art).
+default e pegar a versao com menor `market` — varrendo TODAS as
+variantes presentes (holofoil, normal, reverseHolofoil...) tanto
+DENTRO de cada card quanto ENTRE cards (assumindo que o vendedor da
+Liga lista a versao mais barata/regular, nao a alt art cara). Isto e
+escolha conservadora anti-inflacao: casar com a variante cara
+inflaria a referencia e geraria deal falso.
 
 Robustez:
 - Cache local em disco (default 24h TTL) em data/cache/pokemontcg/<sha>.json
@@ -212,6 +216,20 @@ def _pick_best(
     variant: str | None,
     price_field: str,
 ) -> tuple[dict | None, str, float]:
+    """Escolhe a (card, variante, preco) de MENOR ``price_field`` — escolha
+    conservadora, anti-inflacao de referencia.
+
+    Quando ``variant`` e ``None`` (default), varre TODAS as variantes presentes
+    de cada card e escolhe a de menor preco DENTRO do card, e so entao minimiza
+    ENTRE os cards. Isto evita casar com uma variante cara (ex. holofoil $50)
+    quando existe uma barata (ex. normal $3) no mesmo card — o que inflaria a
+    referencia e geraria deal falso (mesma familia do bug Gengar holo do
+    CardTrader). A premissa honesta e que o vendedor da Liga lista a versao mais
+    barata/regular, nao a alt art cara.
+
+    Quando ``variant`` e explicito, respeita SO essa variante (sem minimizar
+    entre variantes) — o chamador ja decidiu qual versao quer.
+    """
     best_card = None
     best_variant = ""
     best_price = float("inf")
@@ -230,7 +248,6 @@ def _pick_best(
                 best_price = float(value)
                 best_card = card
                 best_variant = v
-            break
 
     if best_card is None:
         return None, "", 0.0

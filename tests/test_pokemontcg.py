@@ -49,6 +49,21 @@ class TestPickBest:
         assert variant == "holofoil"
         assert price == 5.0
 
+    def test_picks_lowest_variant_within_single_card(self):
+        # Regressao: card unico com holofoil:$50 + normal:$3 deve retornar o de
+        # $3 (menor). O bug antigo travava na prioridade holofoil-first (break
+        # na 1a variante presente) e inflava a referencia -> deal falso.
+        cards = [
+            _card("X", "S", "1", {
+                "holofoil": {"market": 50.0},
+                "normal": {"market": 3.0},
+            }),
+        ]
+        card, variant, price = _pick_best(cards, None, "market")
+        assert card["number"] == "1"
+        assert variant == "normal"
+        assert price == 3.0
+
     def test_skips_cards_without_prices(self):
         cards = [
             _card("X", "S", "1", {}),
