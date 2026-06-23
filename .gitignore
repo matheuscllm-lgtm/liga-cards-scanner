@@ -229,7 +229,8 @@ data/liga_offers.csv
 data/liga_offers_*.csv
 data/cache/
 
-# TCG reference-resolver outputs (resolve_refs.py session artifacts — deal/price data, local only)
+# TCG reference-resolver script + outputs (resolve_refs.py session artifacts — deal/price data, local only)
+/resolve_refs.py
 data/asc_ref.json
 data/refs_*.json
 
