@@ -22,7 +22,7 @@ Erros recorrentes (3 famílias — detalhe no manual):
 2. **Git:** galho ou `main` local defasado por squash-merge PARECE pendência. O teste real de "já mergeado" é `git diff --stat origin/main <galho>` estar vazio (não `git merge-base`).
 3. **Honestidade de preço:** inflação de referência, fallback tratado como real, NM frouxo → sempre validar versão/condição e rotular fallback.
 
-**Este scanner:** referência de preço = pokemontcg.io (hoje ANÔNIMO) → sets ME/SV-novos via API do MYP (`tcg_price`) → PriceCharting (fallback); chaves = nenhuma no CI (mock/offline); coleta ao vivo é local (navegador headful).
+**Este scanner:** referência de preço = pokemontcg.io (**usa `POKEMONTCG_API_KEY` quando presente**; pega o menor market entre as variantes) → sets ME/SV-novos via API do MYP (`tcg_price`) → PriceCharting (fallback); chaves = `POKEMONTCG_API_KEY` (CI mock/offline; coleta ao vivo é local, navegador headful).
 
 ## Repository purpose
 
