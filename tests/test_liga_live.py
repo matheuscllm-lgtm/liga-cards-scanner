@@ -10,11 +10,15 @@ from pathlib import Path
 import pytest
 
 from src.collectors.liga_live import (
+    CF_COOLDOWN_BASE_S,
     ED_SETS,
     ListingCard,
     ScanState,
     SellerOffer,
+    _cf_cooldown_seconds,
+    _listing_url,
     parse_brl,
+    parse_editions,
     parse_listing_cards,
     parse_seller_offers,
     pick_buy_offer,
@@ -45,6 +49,65 @@ class TestParseBrl:
 
     def test_zero_e_negativo_viram_none(self):
         assert parse_brl("R$ 0,00") is None
+
+
+class TestParseEditions:
+    # A pagina de edicoes lista, por edicao, um link com o edid numerico +
+    # o codigo ed (ex.: card=edid=391%20ed=PAL). A Liga passou a EXIGIR o
+    # edid na URL de listagem (2026-06) — sem ele, cai na home sem cartas.
+    EDICOES = (
+        '<a href="https://www.ligapokemon.com.br/?view=cards/search&amp;card=edid=391%20ed=PAL">Paldea Evolved</a>'
+        '<a href="/?view=cards/search&card=edid=649%20ed=PRE">Prismatic Evolutions</a>'
+        '<a href="/?view=cards/search&card=edid=773%20ed=CRI">Chaos Rising</a>'
+        '<a href="/?view=cards/search&card=edid=102 ed=GRI">Guardians Rising</a>'
+    )
+
+    def test_extrai_code_para_edid(self):
+        m = parse_editions(self.EDICOES)
+        assert m["PAL"] == "391"
+        assert m["PRE"] == "649"
+        assert m["CRI"] == "773"
+
+    def test_tolera_espaco_literal(self):
+        # href com espaco literal em vez de %20 tambem resolve.
+        assert parse_editions(self.EDICOES)["GRI"] == "102"
+
+    def test_chave_case_insensitive_normalizada_para_upper(self):
+        m = parse_editions('<a href="/?view=cards/search&card=edid=6%20ed=flf">Flashfire</a>')
+        assert m["FLF"] == "6"
+
+    def test_html_sem_edicoes(self):
+        assert parse_editions("<html><body>nada</body></html>") == {}
+
+
+class TestListingUrl:
+    def test_url_inclui_edid(self):
+        url = _listing_url("391", "PAL")
+        assert "edid=391" in url
+        assert "ed=PAL" in url
+        assert url.startswith("https://www.ligapokemon.com.br/?view=cards/search")
+
+    def test_edid_e_ed_separados_por_espaco_encodado(self):
+        # A Liga espera edid e ed no MESMO parametro card=, separados por espaco.
+        assert "edid=391%20ed=PAL" in _listing_url("391", "PAL")
+
+
+class TestCfCooldown:
+    # Bloqueio de CF em sessao longa NAO aborta o scan: recicla + cooldown
+    # escalonado e re-tenta a carta; so aborta apos muitas cartas seguidas.
+    def test_escalona_linearmente(self):
+        base = CF_COOLDOWN_BASE_S
+        assert _cf_cooldown_seconds(1) == base
+        assert _cf_cooldown_seconds(2) == 2 * base
+        assert _cf_cooldown_seconds(3) == 3 * base
+
+    def test_piso_minimo_uma_base(self):
+        # cf_hits 0/negativo nunca zera o cooldown.
+        assert _cf_cooldown_seconds(0) == CF_COOLDOWN_BASE_S
+        assert _cf_cooldown_seconds(-5) == CF_COOLDOWN_BASE_S
+
+    def test_base_customizada(self):
+        assert _cf_cooldown_seconds(2, base=10) == 20
 
 
 class TestParseListing:

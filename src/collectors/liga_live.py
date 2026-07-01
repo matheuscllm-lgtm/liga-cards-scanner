@@ -92,13 +92,26 @@ SCROLL_STABLE_ROUNDS = 3
 SCROLL_MAX_ROUNDS = 60
 # Espera maxima pelo Cloudflare liberar a pagina.
 CF_MAX_WAIT_S = 90
+# Resiliencia a bloqueio de CF em sessao longa (degradacao apos ~40-45min):
+# em vez de abortar o scan inteiro numa carta bloqueada, recicla o Chrome +
+# espera (cooldown escalonado) e re-tenta a MESMA carta ate CF_CARD_RETRIES
+# vezes; se ainda assim nao passar, PULA a carta. So aborta (IP provavelmente
+# banido) se CF_MAX_CONSECUTIVE_BLOCKS cartas seguidas forem puladas por CF.
+CF_CARD_RETRIES = 3
+CF_COOLDOWN_BASE_S = 45
+CF_MAX_CONSECUTIVE_BLOCKS = 6
+
+
+def _cf_cooldown_seconds(cf_hits: int, base: int = CF_COOLDOWN_BASE_S) -> int:
+    """Cooldown escalonado apos bloqueio de CF: base, 2*base, 3*base... (puro)."""
+    return base * max(1, cf_hits)
 
 # Codigo de set da Liga (?ed=XXX) -> nome canonico do set no pokemontcg.io.
 # O coletor emite o nome em INGLES para o matcher casar direto (sem fuzzy).
 # Para um set fora desta lista, use --sets "CODIGO=Nome Em Ingles".
 ED_SETS: dict[str, str] = {
     # Scarlet & Violet era
-    "SVI": "Scarlet & Violet",
+    "SV1": "Scarlet & Violet",   # ed= da Liga p/ o set base (era "SVI", stale)
     "PAL": "Paldea Evolved",
     "OBF": "Obsidian Flames",
     "MEW": "151",
@@ -722,8 +735,35 @@ def resolve_sets(specs: list[str]) -> dict[str, str]:
     return out
 
 
-def _listing_url(ed_code: str) -> str:
-    return f"{LIGA_BASE}/?view=cards/search&card=ed={ed_code}"
+# A pagina de edicoes linka cada set como card=edid=<num>%20ed=<CODE>. A Liga
+# passou a EXIGIR o edid numerico na URL de listagem (mudanca 2026-06): sem ele
+# a URL antiga (?view=cards/search&card=ed=CODE) cai na home SEM cartas. O edid e
+# separado do ed por um espaco (encodado %20 ou literal) DENTRO do mesmo param card=.
+_EDICAO_RE = re.compile(
+    r"edid=(\d+)(?:%20|\+|\s|&#0?32;)ed=([A-Za-z0-9]+)",
+    re.IGNORECASE,
+)
+
+
+def parse_editions(html: str) -> dict[str, str]:
+    """Extrai o mapa {CODIGO_UPPER: edid} da pagina de edicoes da Liga.
+
+    Pura/testavel sem navegador. Chaves normalizadas p/ UPPER (casam com
+    ``resolve_sets``, que tambem faz upper). Ultima ocorrencia vence.
+    """
+    out: dict[str, str] = {}
+    for edid, code in _EDICAO_RE.findall(html or ""):
+        out[code.upper()] = edid
+    return out
+
+
+def _listing_url(edid: str, ed_code: str) -> str:
+    # edid e ed vao no MESMO parametro card=, separados por espaco encodado.
+    return f"{LIGA_BASE}/?view=cards/search&card=edid={edid}%20ed={ed_code}"
+
+
+def _editions_url() -> str:
+    return f"{LIGA_BASE}/?view=cards/search"
 
 
 def collect_live(
@@ -747,10 +787,40 @@ def collect_live(
     pages_fetched = 0
 
     try:
+        # A Liga exige o edid numerico na URL de listagem (mudanca 2026-06).
+        # Resolve o mapa codigo->edid UMA vez, da pagina de edicoes.
+        logger.info("Resolvendo edids da pagina de edicoes da Liga...")
+        editions_html = session.fetch(
+            _editions_url(),
+            wait_selector='a[href*="edid="]',
+        )
+        pages_fetched += 1
+        editions = parse_editions(editions_html)
+        if not editions:
+            evidence = session._save_debug("edicoes_vazia")
+            raise LigaDomChangedError(
+                "Pagina de edicoes carregou mas nenhum edid foi encontrado "
+                f"(DOM mudou?). Evidencia: {evidence}"
+            )
+        logger.info("%d edicoes mapeadas (codigo->edid).", len(editions))
+
+        consecutive_cf = 0  # cartas seguidas puladas por bloqueio de CF
+
         for ed_code, set_name in sets.items():
-            logger.info("=== Set %s (%s) — listando cartas (infinite scroll)...", ed_code, set_name)
+            edid = editions.get(ed_code.upper())
+            if not edid:
+                # Codigo de set ruim/stale: pula e segue (nao aborta os demais
+                # sets do scan). So a pagina de edicoes TODA vazia e que aborta
+                # (guard acima). Filosofia do repo: nunca aborta por dado ruim.
+                logger.warning(
+                    "Set %r nao encontrado na pagina de edicoes da Liga "
+                    "(edid ausente) — pulando. Confirme o codigo ed= na Liga.",
+                    ed_code,
+                )
+                continue
+            logger.info("=== Set %s (%s) [edid=%s] — listando cartas (infinite scroll)...", ed_code, set_name, edid)
             listing_html = session.fetch(
-                _listing_url(ed_code),
+                _listing_url(edid, ed_code),
                 wait_selector='a[href*="view=cards/card"]',
                 scroll_count_selector="div.card-item",
             )
@@ -779,7 +849,9 @@ def collect_live(
 
                 offer = None
                 status = "falha"
-                for attempt in (1, 2):
+                err_hits = 0   # falhas genericas (2 tentativas)
+                cf_hits = 0    # bloqueios de CF (CF_CARD_RETRIES c/ cooldown)
+                while True:
                     try:
                         if pages_fetched and pages_fetched % recycle_every == 0:
                             session.recycle()
@@ -839,16 +911,51 @@ def collect_live(
                             )
                         break
                     except LigaBlockedError:
-                        raise  # bloqueio e fatal e honesto — nao mascarar
+                        # Bloqueio de CF NAO aborta o scan: recicla + espera
+                        # (cooldown escalonado) e re-tenta a MESMA carta. So
+                        # depois de CF_CARD_RETRIES a carta e pulada.
+                        cf_hits += 1
+                        if cf_hits > CF_CARD_RETRIES:
+                            status = "cf_block"
+                            logger.warning(
+                                "[%d/%d] %s (#%s): CF bloqueou apos %d tentativas "
+                                "— pulando a carta (preco nao inventado).",
+                                i, len(cards), card.name, card.number, CF_CARD_RETRIES,
+                            )
+                            break
+                        cooldown = _cf_cooldown_seconds(cf_hits)
+                        logger.warning(
+                            "[%d/%d] %s (#%s): CF bloqueou (cf %d/%d) — reciclando "
+                            "e esperando %ds antes de re-tentar.",
+                            i, len(cards), card.name, card.number,
+                            cf_hits, CF_CARD_RETRIES, cooldown,
+                        )
+                        session.recycle()
+                        time.sleep(cooldown)
                     except Exception as exc:
+                        err_hits += 1
                         logger.warning(
                             "[%d/%d] %s: tentativa %d falhou (%s: %s)%s",
-                            i, len(cards), card.name, attempt,
+                            i, len(cards), card.name, err_hits,
                             type(exc).__name__, exc,
-                            " — reciclando e tentando de novo" if attempt == 1 else "",
+                            " — reciclando e tentando de novo" if err_hits == 1 else "",
                         )
-                        if attempt == 1:
-                            session.recycle()
+                        if err_hits >= 2:
+                            break
+                        session.recycle()
+                # Aborta so se o CF bloquear MUITAS cartas seguidas (IP banido).
+                if status == "cf_block":
+                    consecutive_cf += 1
+                    if consecutive_cf >= CF_MAX_CONSECUTIVE_BLOCKS:
+                        evidence = session._save_debug("cf_block_persistente")
+                        raise LigaBlockedError(
+                            f"Cloudflare bloqueou {consecutive_cf} cartas seguidas "
+                            f"mesmo apos recycle+cooldown — IP provavelmente banido. "
+                            f"Evidencia: {evidence}. Progresso salvo no checkpoint; "
+                            f"use --resume mais tarde."
+                        )
+                else:
+                    consecutive_cf = 0
                 state.mark(ed_code, card.url, status, offer)
                 if delay_between_cards_s:
                     time.sleep(delay_between_cards_s)
