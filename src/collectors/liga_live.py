@@ -98,7 +98,7 @@ CF_MAX_WAIT_S = 90
 # Para um set fora desta lista, use --sets "CODIGO=Nome Em Ingles".
 ED_SETS: dict[str, str] = {
     # Scarlet & Violet era
-    "SVI": "Scarlet & Violet",
+    "SV1": "Scarlet & Violet",   # ed= da Liga p/ o set base (era "SVI", stale)
     "PAL": "Paldea Evolved",
     "OBF": "Obsidian Flames",
     "MEW": "151",
@@ -722,8 +722,35 @@ def resolve_sets(specs: list[str]) -> dict[str, str]:
     return out
 
 
-def _listing_url(ed_code: str) -> str:
-    return f"{LIGA_BASE}/?view=cards/search&card=ed={ed_code}"
+# A pagina de edicoes linka cada set como card=edid=<num>%20ed=<CODE>. A Liga
+# passou a EXIGIR o edid numerico na URL de listagem (mudanca 2026-06): sem ele
+# a URL antiga (?view=cards/search&card=ed=CODE) cai na home SEM cartas. O edid e
+# separado do ed por um espaco (encodado %20 ou literal) DENTRO do mesmo param card=.
+_EDICAO_RE = re.compile(
+    r"edid=(\d+)(?:%20|\+|\s|&#0?32;)ed=([A-Za-z0-9]+)",
+    re.IGNORECASE,
+)
+
+
+def parse_editions(html: str) -> dict[str, str]:
+    """Extrai o mapa {CODIGO_UPPER: edid} da pagina de edicoes da Liga.
+
+    Pura/testavel sem navegador. Chaves normalizadas p/ UPPER (casam com
+    ``resolve_sets``, que tambem faz upper). Ultima ocorrencia vence.
+    """
+    out: dict[str, str] = {}
+    for edid, code in _EDICAO_RE.findall(html or ""):
+        out[code.upper()] = edid
+    return out
+
+
+def _listing_url(edid: str, ed_code: str) -> str:
+    # edid e ed vao no MESMO parametro card=, separados por espaco encodado.
+    return f"{LIGA_BASE}/?view=cards/search&card=edid={edid}%20ed={ed_code}"
+
+
+def _editions_url() -> str:
+    return f"{LIGA_BASE}/?view=cards/search"
 
 
 def collect_live(
@@ -747,10 +774,38 @@ def collect_live(
     pages_fetched = 0
 
     try:
+        # A Liga exige o edid numerico na URL de listagem (mudanca 2026-06).
+        # Resolve o mapa codigo->edid UMA vez, da pagina de edicoes.
+        logger.info("Resolvendo edids da pagina de edicoes da Liga...")
+        editions_html = session.fetch(
+            _editions_url(),
+            wait_selector='a[href*="edid="]',
+        )
+        pages_fetched += 1
+        editions = parse_editions(editions_html)
+        if not editions:
+            evidence = session._save_debug("edicoes_vazia")
+            raise LigaDomChangedError(
+                "Pagina de edicoes carregou mas nenhum edid foi encontrado "
+                f"(DOM mudou?). Evidencia: {evidence}"
+            )
+        logger.info("%d edicoes mapeadas (codigo->edid).", len(editions))
+
         for ed_code, set_name in sets.items():
-            logger.info("=== Set %s (%s) — listando cartas (infinite scroll)...", ed_code, set_name)
+            edid = editions.get(ed_code.upper())
+            if not edid:
+                # Codigo de set ruim/stale: pula e segue (nao aborta os demais
+                # sets do scan). So a pagina de edicoes TODA vazia e que aborta
+                # (guard acima). Filosofia do repo: nunca aborta por dado ruim.
+                logger.warning(
+                    "Set %r nao encontrado na pagina de edicoes da Liga "
+                    "(edid ausente) — pulando. Confirme o codigo ed= na Liga.",
+                    ed_code,
+                )
+                continue
+            logger.info("=== Set %s (%s) [edid=%s] — listando cartas (infinite scroll)...", ed_code, set_name, edid)
             listing_html = session.fetch(
-                _listing_url(ed_code),
+                _listing_url(edid, ed_code),
                 wait_selector='a[href*="view=cards/card"]',
                 scroll_count_selector="div.card-item",
             )
