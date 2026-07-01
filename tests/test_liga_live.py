@@ -10,10 +10,12 @@ from pathlib import Path
 import pytest
 
 from src.collectors.liga_live import (
+    CF_COOLDOWN_BASE_S,
     ED_SETS,
     ListingCard,
     ScanState,
     SellerOffer,
+    _cf_cooldown_seconds,
     _listing_url,
     parse_brl,
     parse_editions,
@@ -88,6 +90,24 @@ class TestListingUrl:
     def test_edid_e_ed_separados_por_espaco_encodado(self):
         # A Liga espera edid e ed no MESMO parametro card=, separados por espaco.
         assert "edid=391%20ed=PAL" in _listing_url("391", "PAL")
+
+
+class TestCfCooldown:
+    # Bloqueio de CF em sessao longa NAO aborta o scan: recicla + cooldown
+    # escalonado e re-tenta a carta; so aborta apos muitas cartas seguidas.
+    def test_escalona_linearmente(self):
+        base = CF_COOLDOWN_BASE_S
+        assert _cf_cooldown_seconds(1) == base
+        assert _cf_cooldown_seconds(2) == 2 * base
+        assert _cf_cooldown_seconds(3) == 3 * base
+
+    def test_piso_minimo_uma_base(self):
+        # cf_hits 0/negativo nunca zera o cooldown.
+        assert _cf_cooldown_seconds(0) == CF_COOLDOWN_BASE_S
+        assert _cf_cooldown_seconds(-5) == CF_COOLDOWN_BASE_S
+
+    def test_base_customizada(self):
+        assert _cf_cooldown_seconds(2, base=10) == 20
 
 
 class TestParseListing:

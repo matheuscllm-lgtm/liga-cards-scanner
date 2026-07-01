@@ -92,6 +92,19 @@ SCROLL_STABLE_ROUNDS = 3
 SCROLL_MAX_ROUNDS = 60
 # Espera maxima pelo Cloudflare liberar a pagina.
 CF_MAX_WAIT_S = 90
+# Resiliencia a bloqueio de CF em sessao longa (degradacao apos ~40-45min):
+# em vez de abortar o scan inteiro numa carta bloqueada, recicla o Chrome +
+# espera (cooldown escalonado) e re-tenta a MESMA carta ate CF_CARD_RETRIES
+# vezes; se ainda assim nao passar, PULA a carta. So aborta (IP provavelmente
+# banido) se CF_MAX_CONSECUTIVE_BLOCKS cartas seguidas forem puladas por CF.
+CF_CARD_RETRIES = 3
+CF_COOLDOWN_BASE_S = 45
+CF_MAX_CONSECUTIVE_BLOCKS = 6
+
+
+def _cf_cooldown_seconds(cf_hits: int, base: int = CF_COOLDOWN_BASE_S) -> int:
+    """Cooldown escalonado apos bloqueio de CF: base, 2*base, 3*base... (puro)."""
+    return base * max(1, cf_hits)
 
 # Codigo de set da Liga (?ed=XXX) -> nome canonico do set no pokemontcg.io.
 # O coletor emite o nome em INGLES para o matcher casar direto (sem fuzzy).
@@ -791,6 +804,8 @@ def collect_live(
             )
         logger.info("%d edicoes mapeadas (codigo->edid).", len(editions))
 
+        consecutive_cf = 0  # cartas seguidas puladas por bloqueio de CF
+
         for ed_code, set_name in sets.items():
             edid = editions.get(ed_code.upper())
             if not edid:
@@ -834,7 +849,9 @@ def collect_live(
 
                 offer = None
                 status = "falha"
-                for attempt in (1, 2):
+                err_hits = 0   # falhas genericas (2 tentativas)
+                cf_hits = 0    # bloqueios de CF (CF_CARD_RETRIES c/ cooldown)
+                while True:
                     try:
                         if pages_fetched and pages_fetched % recycle_every == 0:
                             session.recycle()
@@ -894,16 +911,51 @@ def collect_live(
                             )
                         break
                     except LigaBlockedError:
-                        raise  # bloqueio e fatal e honesto — nao mascarar
+                        # Bloqueio de CF NAO aborta o scan: recicla + espera
+                        # (cooldown escalonado) e re-tenta a MESMA carta. So
+                        # depois de CF_CARD_RETRIES a carta e pulada.
+                        cf_hits += 1
+                        if cf_hits > CF_CARD_RETRIES:
+                            status = "cf_block"
+                            logger.warning(
+                                "[%d/%d] %s (#%s): CF bloqueou apos %d tentativas "
+                                "— pulando a carta (preco nao inventado).",
+                                i, len(cards), card.name, card.number, CF_CARD_RETRIES,
+                            )
+                            break
+                        cooldown = _cf_cooldown_seconds(cf_hits)
+                        logger.warning(
+                            "[%d/%d] %s (#%s): CF bloqueou (cf %d/%d) — reciclando "
+                            "e esperando %ds antes de re-tentar.",
+                            i, len(cards), card.name, card.number,
+                            cf_hits, CF_CARD_RETRIES, cooldown,
+                        )
+                        session.recycle()
+                        time.sleep(cooldown)
                     except Exception as exc:
+                        err_hits += 1
                         logger.warning(
                             "[%d/%d] %s: tentativa %d falhou (%s: %s)%s",
-                            i, len(cards), card.name, attempt,
+                            i, len(cards), card.name, err_hits,
                             type(exc).__name__, exc,
-                            " — reciclando e tentando de novo" if attempt == 1 else "",
+                            " — reciclando e tentando de novo" if err_hits == 1 else "",
                         )
-                        if attempt == 1:
-                            session.recycle()
+                        if err_hits >= 2:
+                            break
+                        session.recycle()
+                # Aborta so se o CF bloquear MUITAS cartas seguidas (IP banido).
+                if status == "cf_block":
+                    consecutive_cf += 1
+                    if consecutive_cf >= CF_MAX_CONSECUTIVE_BLOCKS:
+                        evidence = session._save_debug("cf_block_persistente")
+                        raise LigaBlockedError(
+                            f"Cloudflare bloqueou {consecutive_cf} cartas seguidas "
+                            f"mesmo apos recycle+cooldown — IP provavelmente banido. "
+                            f"Evidencia: {evidence}. Progresso salvo no checkpoint; "
+                            f"use --resume mais tarde."
+                        )
+                else:
+                    consecutive_cf = 0
                 state.mark(ed_code, card.url, status, offer)
                 if delay_between_cards_s:
                     time.sleep(delay_between_cards_s)
