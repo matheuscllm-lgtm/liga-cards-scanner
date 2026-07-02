@@ -74,10 +74,11 @@ def _write_xlsx(items: list[Comparison], path: Path) -> None:
 def _print_summary(items: list[Comparison], rate: float) -> None:
     """Imprime a ENTREGA canonica: a tabela markdown (terminal/chat).
 
-    A entrega de um scan e SEMPRE esta tabela markdown — com links
-    clicaveis (oferta na Liga + referencia de preco TCG), Carta = nome +
-    numero, e TODOS os deals (nao amostra). NUNCA montar a mao; usar
-    sempre este gerador. Os arquivos em reports/ sao subproduto local.
+    A entrega de um scan e SEMPRE esta tabela markdown — formato canonico
+    da frota (espelho do myp_summary.py): 3 buckets, links clicaveis
+    `[oferta](url) · [TCG](url)`, Carta = nome + numero, e TODOS os deals
+    (nao amostra). NUNCA montar a mao; usar sempre este gerador. Os
+    arquivos em reports/ sao subproduto local.
     """
     from src.reporting.markdown import build_markdown
     print(build_markdown(items, rate))

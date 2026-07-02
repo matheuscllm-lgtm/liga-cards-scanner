@@ -46,7 +46,7 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-pytest -q                 # 166 testes
+pytest -q                 # 184 testes
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 
@@ -57,6 +57,11 @@ python src/collect_liga_live.py --sets PRE --resume # retoma scan que caiu
 ```
 
 Windows: `01_setup.ps1` -> `02_scan_liga.ps1` -> `03_scan_real.ps1` (ver `INSTALL_WINDOWS.md`).
+
+> 🎯 **Skill `scan-liga`** (`.claude/skills/scan-liga/SKILL.md`): fixa o
+> procedimento único de scan + a entrega obrigatória no formato padrão MYP +
+> a regra do piso (R$50 só para cartas; selados sem piso). Todo scan/entrega
+> da Liga passa por ele.
 
 ## Coletor ao vivo (src/collectors/liga_live.py)
 
@@ -141,7 +146,7 @@ src/pricing/
   currency.py            get_exchange_rate() (fixo / auto); convert_usd_to_brl()
   margin.py              calculate_margin(); is_approved().  MIN_MARGIN=30% (bruta, sem taxa), MIN_PRICE=R$50
 src/reporting/
-  markdown.py            build_markdown() — a ENTREGA canonica (tabela markdown c/ links clicaveis). main.py imprime isto no fim.
+  markdown.py            build_markdown() — a ENTREGA canonica (tabela markdown formato MYP, 3 buckets, links clicaveis). main.py imprime isto no fim.
   xlsx.py                write_xlsx() — header colorido, formato moeda/%, tinta por status, hyperlinks, freeze panes, autofilter (subproduto local)
 ```
 
@@ -155,12 +160,22 @@ src/reporting/
 
 ## Estado e pendências
 
+- **Entrega alinhada ao formato padrão MYP + skill `scan-liga` (2026-07-02)**:
+  `build_markdown` foi reescrito no formato canônico da frota (espelho do
+  `myp_summary.py`): 3 buckets (🟢 exatos / ⚠️ fuzzy "validar manualmente" /
+  ❌ reprovados), colunas `# | Margem % | Liga R$ | TCG US$ | Dif | Carta |
+  Set | Raridade | Cond | Qtd | Links`, links `[oferta](url) · [TCG](url)`,
+  Carta sem `#`, moedas/percentual formatados (`R$800,00`, `US$300.00`,
+  `95.0%`). Colunas `Status`/`Nota` saíram (o bucket codifica o status).
+  Criado o skill `.claude/skills/scan-liga/SKILL.md` (procedimento único de
+  scan + entrega obrigatória + regra do piso). ⚠️ gotcha interno: a margem
+  da Liga já é percentual — o `fmt_pct` daqui NÃO multiplica por 100 (o do
+  MYP multiplica, lá a margem é fração). 184 testes.
 - **Entrega canônica em tabela markdown (2026-06-17)**: `src/reporting/markdown.py`
   (`build_markdown`) virou a saída de entrega; `main.py` o imprime no fim de
-  todo scan (substituiu a tabela de texto fixo). `Comparison` agora carrega
-  `card_number` (coluna Carta = nome + número) e a célula de Links é clicável
-  (`[oferta](url) · [referência de preço](url)`). Match fuzzy → nota
-  "validar manualmente". 158 testes (10 novos em `tests/test_markdown.py`).
+  todo scan (substituiu a tabela de texto fixo). `Comparison` carrega
+  `card_number` (coluna Carta = nome + número) e a célula de Links é clicável.
+  Match fuzzy → "validar manualmente".
 - `main` funcional, 106 testes, CI verde. PRs #15 e #16 já mergeados.
 - **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
@@ -195,14 +210,31 @@ LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
 
 (No Windows use `.venv\Scripts\python.exe`. Esses comandos foram verificados nesta sessão — `python src/main.py` em modo mock também imprime a tabela.)
 
-### Colunas canônicas da tabela (o que `build_markdown` emite)
+### Formato canônico da tabela (o que `build_markdown` emite) — padrão MYP
 
-`Carta | Set | Liga R$ | Ref TCG R$ | Ref TCG US$ | Margem % | Status | Links | Nota`
+Desde 2026-07-02 a entrega é o **formato padrão da frota** (espelho do
+`myp_summary.py` do repo myp-arbitrage-scanner), em **3 buckets**:
 
-- **Carta** = nome **+ número** do card (ex. `Umbreon ex #161`). O número vem de `Comparison.card_number` (preenchido pelo matcher a partir da oferta Liga ou da ref TCG); sem número, só o nome.
-- **Links** = `[oferta](url) · [referência de preço](url)` — **clicáveis e verificáveis**, SEMPRE os dois lados (a oferta na Liga e a referência de preço no TCGplayer).
-- **Nota** = deals com match fuzzy (`match_score < 1.0`) saem marcados **`validar manualmente`** — o operador confere a versão exata da carta antes de decidir.
-- Mostra **TODOS** os deals comparados (aprovados **e** rejeitados), ordenados por margem — não é amostra curada.
+1. **🟢 Aprovados (match exato)** — margem em **negrito**:
+   `| # | Margem % | Liga R$ | TCG US$ | Dif | Carta | Set | Raridade | Cond | Qtd | Links |`
+2. **⚠️ Aprovados com match fuzzy (validar manualmente)** — mesmas colunas + `Match` (score); o caveat fica no título da seção (padrão MYP), não numa coluna Nota.
+3. **❌ Reprovados (margem < 30% ou preço < R$50)** — mesmas colunas + `Match`; garante o invariante da frota de mostrar **TODAS** as linhas comparadas (não amostra curada).
+
+- **Carta** = nome **+ número**, SEM `#` (ex. `Umbreon ex 161`, estilo MYP). O número vem de `Comparison.card_number`; sem número, só o nome; não duplica se já está no nome.
+- **Dif** = lucro bruto em R$ (`TCG R$ − Liga R$`).
+- **Raridade** / **Qtd** = `—` (a Liga não expõe raridade nem estoque por oferta); **Cond** = `NM` (invariante NM-only).
+- **Links** = `[oferta](url) · [TCG](url)` — **clicáveis e verificáveis**, SEMPRE os dois lados quando existirem (a oferta na Liga e a referência de preço no TCGplayer). Nunca inventar URL.
+- Formatação: `R$800,00` / `US$300.00` / `95.0%`; `—` para valor ausente. ⚠️ A margem da Liga já é percentual — o `fmt_pct` local NÃO multiplica por 100 (diferente do MYP, onde a margem é fração).
+- O procedimento completo de scan + entrega está fixado no skill **`.claude/skills/scan-liga/SKILL.md`**.
+
+### Piso de preço — SÓ para cartas
+
+O piso de **R$50** (`MIN_PRICE_BRL` em `src/pricing/margin.py`) é filtro de
+relevância que vale **apenas para cartas avulsas**. **Produtos selados (ETB,
+booster box, bundle, tin etc.) NÃO têm piso de preço** — regra do operador
+(2026-07-02). Selados nem são escopo deste scanner (a Liga aqui é
+singles-only); eles moram no repo `sealed-scanner`. Se um dia este scanner
+cobrir selados, o piso NÃO se aplica a eles.
 
 ### Arquivo só sob pedido explícito
 
