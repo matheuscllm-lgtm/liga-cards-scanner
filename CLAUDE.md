@@ -235,14 +235,11 @@ python -m pytest -q    # pytest.ini na raiz (testpaths=tests, pythonpath=.)
 se divergir, o número real vence). Suíte offline: os testes exercitam
 parsers/helpers puros; o browser é importado lazy e nunca é lançado.
 
-**CI — há DOIS workflows** (ambos Python 3.11, disparam em push na `main` e em
-todo PR):
+**CI — UM workflow** (Python 3.11, dispara em push na `main` e em todo PR):
 
 - `.github/workflows/ci.yml` ("CI"): `pytest -q` + smoke do scanner com dados
   mock (`python src/main.py` com `LIGA_USD_BRL_RATE=5.20`).
-- `.github/workflows/tests.yml` ("tests"): só `pytest -q` (+ `workflow_dispatch`).
-  É redundante com o ci.yml na parte de testes — candidato a consolidação
-  (pendência; não consolidar sem PR).
+- (O antigo `tests.yml`, redundante, foi removido no PR #46, 2026-07-07.)
 
 ## Arquitetura
 
@@ -322,5 +319,3 @@ Pendências vivas:
   bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
   apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
-- Avaliar consolidar os dois workflows de CI (`ci.yml` + `tests.yml` — ver
-  seção Testes).
