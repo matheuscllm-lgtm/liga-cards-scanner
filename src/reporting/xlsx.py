@@ -24,6 +24,7 @@ HUMAN_LABELS = {
     "tcg_url": "Link TCG",
     "status": "Status",
     "match_score": "Score",
+    "card_number": "Numero",
 }
 
 CURRENCY_BRL_COLS = {"price_liga_brl", "price_tcg_brl"}

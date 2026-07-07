@@ -46,7 +46,7 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-pytest -q                 # 184 testes
+pytest -q                 # 199 testes
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 

@@ -47,6 +47,20 @@ class TestGetExchangeRate:
         monkeypatch.setenv("LIGA_USD_BRL_RATE", "abc")
         assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
 
+    def test_zero_env_rate_falls_back_to_default(self, monkeypatch):
+        # Cambio 0 zeraria TCG_BRL e corromperia toda margem calculada.
+        monkeypatch.setenv("LIGA_USD_BRL_RATE", "0")
+        assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
+
+    def test_negative_env_rate_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("LIGA_USD_BRL_RATE", "-5.20")
+        assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
+
+    def test_nan_env_rate_falls_back_to_default(self, monkeypatch):
+        # float("nan") parseia sem ValueError; o guard `not rate > 0` pega.
+        monkeypatch.setenv("LIGA_USD_BRL_RATE", "nan")
+        assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
+
 
 class TestLiveExchangeRate:
     def test_auto_uses_awesomeapi(self, monkeypatch):
@@ -72,6 +86,21 @@ class TestLiveExchangeRate:
         with patch(
             "src.pricing.currency.urllib.request.urlopen",
             side_effect=TimeoutError("simulado"),
+        ):
+            assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
+
+    def test_auto_falls_back_on_non_positive_bid(self, monkeypatch):
+        # Cotacao 0/negativa da API e dado quebrado — nunca usar como cambio.
+        import io
+        import json as _json
+        from unittest.mock import patch
+
+        monkeypatch.setenv("LIGA_USD_BRL_RATE", "auto")
+        body = io.BytesIO(_json.dumps({"USDBRL": {"bid": "0"}}).encode("utf-8"))
+        body.__enter__ = lambda self: self
+        body.__exit__ = lambda *a: False
+        with patch(
+            "src.pricing.currency.urllib.request.urlopen", return_value=body
         ):
             assert get_exchange_rate() == DEFAULT_USD_BRL_RATE
 

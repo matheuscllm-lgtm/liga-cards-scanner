@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from dataclasses import asdict
 from datetime import datetime
@@ -12,8 +13,6 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
-
-import os
 
 from src.collectors.liga_pokemon import fetch_offers
 from src.collectors.tcgplayer import fetch_reference_prices
@@ -85,4 +84,9 @@ def _print_summary(items: list[Comparison], rate: float) -> None:
 
 
 if __name__ == "__main__":
+    # Console Windows pode estar em cp1252; a tabela de entrega tem emoji e
+    # "≥" (mesmo guard do collect_liga_live.py — sem ele o print final crasha).
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     run()
