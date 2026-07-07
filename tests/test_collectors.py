@@ -72,6 +72,18 @@ class TestCsvMode:
         refs = fetch_reference_prices(source="csv", csv_path=path)
         assert [r.card_name for r in refs] == ["Ok", "Outro"]
 
+    def test_skips_non_positive_price(self, tmp_path):
+        # Referencia 0/negativa e dado quebrado, nao preco real — pular
+        # (paridade com o coletor Liga, que descarta preco nao positivo).
+        path = self._write_csv(
+            tmp_path,
+            "Zerado,Set X,0.00,\n"
+            "Negativo,Set X,-3.50,\n"
+            "Ok,Set X,10.00,\n",
+        )
+        refs = fetch_reference_prices(source="csv", csv_path=path)
+        assert [r.card_name for r in refs] == ["Ok"]
+
     def test_raises_on_missing_required_columns(self, tmp_path):
         path = tmp_path / "tcg.csv"
         path.write_text("card_name,set_name\nA,B\n", encoding="utf-8")

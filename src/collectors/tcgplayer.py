@@ -156,6 +156,17 @@ def _load_csv(path: Path) -> list[TCGReference]:
                     row.get("market_price_usd"),
                 )
                 continue
+            if price <= 0:
+                # Referencia sem preco real (0/negativo) e dado quebrado —
+                # pular mantem a honestidade de preco (paridade com o coletor
+                # de ofertas Liga, que tambem descarta preco nao positivo).
+                logger.warning(
+                    "Linha %d em %s ignorada: preco nao positivo %r",
+                    line_no,
+                    path,
+                    row.get("market_price_usd"),
+                )
+                continue
             refs.append(
                 TCGReference(
                     card_name=(row["card_name"] or "").strip(),
