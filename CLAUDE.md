@@ -1,35 +1,46 @@
-# CLAUDE.md
+# CLAUDE.md — liga-cards-scanner
 
-Orientação para o Claude Code (e outros agentes) ao trabalhar neste repositório.
+Scanner de **arbitragem de cards Pokémon (singles)**: compara o preço de oferta
+na **Liga Pokémon** (marketplace BR, em R$) com o preço de referência do
+**TCGplayer** (USD, via API pública pokemontcg.io) e lista os cards com margem
+bruta ≥ 30% e preço ≥ R$50. Orientação para qualquer sessão Claude Code
+(local ou nuvem) que trabalhe neste repositório.
 
 > 🔄 **Retomando uma conversa?** As notas de handoff/sessão são mantidas
 > **localmente** (fora do repositório, por higiene de release público). Este
 > `CLAUDE.md` é o manual técnico canônico do repo.
 
+> 🗂️ **Nomes:** o repo no GitHub chama-se **`liga-cards-scanner`**
+> (org `matheuscllm-lgtm`); a pasta local no **PC do operador** é
+> **`C:\Users\mathe\liga-pokemon-scanner`**. É o mesmo projeto.
+
 ## 🛰️ Convenções da frota (cross-scanner)
 
-> **Manual completo** (repo privado): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local: `C:\Users\mathe\scanners-commons\`.
+> **Manual completo** (repo privado): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
 
 Invariantes que valem para TODOS os scanners:
-- **Margem BRUTA, mínimo 30%** — só `(revenda − compra)/compra`, sem taxa embutida; piso de relevância R$50 (~US$10).
+
+- **Margem BRUTA, mínimo 30%** — só `(revenda − compra)/compra`, sem nenhuma taxa embutida (frete, cartão, IOF — o operador calcula por fora).
+- **Piso de relevância R$50 (~US$10) — SÓ para cartas avulsas (singles).** Produtos SELADOS não têm piso (decisão do operador, 2026-06-27); lá o único critério é a margem ≥30%.
 - **Só Near Mint** — condição por match EXATO `== "NM"`, nunca substring (já vazou SP).
 - **Nunca inventar preço** — fonte falhou → marca fallback/erro e segue; jamais fabrica número.
-- **Entrega = tabela markdown no chat** (nunca XLSX por padrão), gerada pela ferramenta do repo, mostrando TODAS as linhas (aprovadas + rejeitadas). Coluna `Carta` = nome + número; coluna `Links` combinada = `[oferta](url) · [TCG/referência](url)`.
+- **Nunca recomendar compra** — o scanner reporta margem, flags e fontes; a decisão de capital é do operador.
+- **Entrega = tabela markdown no chat** (nunca XLSX/CSV por padrão), gerada pela ferramenta do repo — nunca montada à mão —, mostrando TODAS as linhas (aprovadas + rejeitadas). Coluna `Carta` = nome + número; coluna `Links` combinada = `[oferta](url) · [TCG/referência](url)`.
 - ⚠️ **Convenção de threshold:** percentual inteiro (`30`) = MYP, Liga, eBay; fração (`0.30`) = CardTrader, COMC, Selados.
 
 Erros recorrentes (3 famílias — detalhe no manual):
+
 1. **Segredo/ambiente:** BOM/zero-width numa chave → crash latin-1 no header → scan "verde mas vazio". Setar sem BOM (`printf '%s' 'KEY' | gh secret set`) **e** sanitizar ao ler no código (`.strip()` NÃO tira BOM).
-2. **Git:** galho ou `main` local defasado por squash-merge PARECE pendência. O teste real de "já mergeado" é `git diff --stat origin/main <galho>` estar vazio (não `git merge-base`).
+2. **Git:** branch ou `main` local defasado por squash-merge PARECE pendência. O teste real de "já mergeado" é `git diff --stat origin/main <branch>` estar vazio (não `git merge-base`).
 3. **Honestidade de preço:** inflação de referência, fallback tratado como real, NM frouxo → sempre validar versão/condição e rotular fallback.
 
-**Este scanner:** referência de preço = pokemontcg.io (**usa `POKEMONTCG_API_KEY` quando presente**; pega o menor market entre as variantes) → sets ME/SV-novos via API do MYP (`tcg_price`) → PriceCharting (fallback); chaves = `POKEMONTCG_API_KEY` (CI mock/offline; coleta ao vivo é local, navegador headful).
+**Este scanner:** referência de preço = pokemontcg.io (**usa `POKEMONTCG_API_KEY` quando presente**; pega o menor `market` entre as variantes; cache 24h em disco) — é a **única fonte real de preço implementada** neste repo (`LIGA_TCG_SOURCE`: mock | csv | pokemontcg | api-stub); chaves = `POKEMONTCG_API_KEY` (CI mock/offline; coleta ao vivo é local, navegador headful).
 
-## Repository purpose
+## Propósito do repositório
 
-Scanner de **arbitragem de cards Pokémon**. Compara o preço de oferta na **Liga
-Pokémon** (marketplace BR, em R$) com o preço de referência do **TCGplayer**
-(USD, obtido via API pública pokemontcg.io), converte tudo para BRL e lista os
-cards com **margem bruta ≥ 30%** e **preço ≥ R$50**, ordenados por maior margem.
+Compara o preço de oferta na Liga Pokémon (BR, R$) com o preço de referência do
+TCGplayer (USD, pokemontcg.io), converte tudo para BRL e lista os cards
+aprovados ordenados por maior margem:
 
 ```
 Margem% = ((TCG_BRL − Liga_BRL) / Liga_BRL) × 100   (margem BRUTA, sem taxas)
@@ -40,13 +51,14 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 > NÃO embute frete, taxa de cartão, IOF nem qualquer outra taxa — o operador
 > calcula isso por fora, manualmente. O piso de R$50 é filtro de relevância
 > (não é taxa). Regra cross-scanner do operador (2026-06-06): 30% bruta, todos
-> os scanners de TCG.
+> os scanners de TCG. Os limiares moram em `src/pricing/margin.py`
+> (`MIN_MARGIN=30%`, `MIN_PRICE=R$50`).
 
-## Comandos
+## Como rodar
 
 ```bash
 pip install -r requirements.txt
-pytest -q                 # 199 testes
+python -m pytest -q       # suíte de testes (199 testes verificados em 2026-07-07)
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 
@@ -56,12 +68,85 @@ python src/collect_liga_live.py --sets PRE SSP JTG  # vários sets
 python src/collect_liga_live.py --sets PRE --resume # retoma scan que caiu
 ```
 
-Windows: `01_setup.ps1` -> `02_scan_liga.ps1` -> `03_scan_real.ps1` (ver `INSTALL_WINDOWS.md`).
+Flags do `collect_liga_live.py` (verificadas no argparse):
+
+- `--sets` (obrigatória) — códigos de set da Liga (ex.: `PRE SSP`); aceita
+  também a forma `CODIGO=Nome Em Ingles` para set fora do mapa conhecido.
+- `--resume` — retoma do checkpoint (`data/liga_live_state.json`).
+- `--max-cards N` — limita às N primeiras cartas de cada set (smoke/teste).
+- `--min-price` — piso em R$ do pré-filtro da listagem (default `50.0`).
+- `--headless` — Chrome invisível (AVISO: o Cloudflare costuma barrar headless;
+  o padrão headful é o que funciona).
+- `--csv PATH` — onde salvar o CSV de ofertas (default `data/liga_offers.csv`).
+- `--no-report` — só coleta e salva o CSV; não roda o relatório TCG no final.
+
+Windows (PC do operador): `01_setup.ps1` → `02_scan_liga.ps1` → `03_scan_real.ps1`
+(ver `INSTALL_WINDOWS.md`; existem também os equivalentes `.bat`). Nos comandos
+Python do Windows use `.venv\Scripts\python.exe`.
 
 > 🎯 **Skill `scan-liga`** (`.claude/skills/scan-liga/SKILL.md`): fixa o
 > procedimento único de scan + a entrega obrigatória no formato padrão MYP +
-> a regra do piso (R$50 só para cartas; selados sem piso). Todo scan/entrega
-> da Liga passa por ele.
+> a regra do piso (R$50 só para cartas; selados sem piso — ver seção 📤).
+> **Todo scan/entrega da Liga passa por ele.** Há também o comando `/auto`
+> (`.claude/commands/auto.md`), o modo autônomo padrão da frota.
+
+## 📤 Entrega de resultados — tabela markdown no chat, NUNCA arquivo (MANDATÓRIO)
+
+**Regra dura (operador, 2026-06-06). Vale para TODOS os scanners (CardTrader / MYP / Liga / sealed / PSA).**
+
+O resultado de um scan é entregue ao operador **como tabela markdown no chat do
+Claude Code** — no **terminal ou no app**. **NÃO** entregar como arquivo
+`.xlsx`/`.csv` para download por padrão.
+
+### A entrega é SEMPRE gerada pela ferramenta do repo — nunca montada à mão
+
+A tabela de entrega é produzida por **`src/reporting/markdown.py`
+(`build_markdown`)**, que o `src/main.py` imprime automaticamente no fim de
+todo scan. **NÃO** transcrever números do CSV/JSON/XLSX para uma tabela escrita
+na mão — isso introduz erro e perde colunas. Sempre rode o pipeline e copie a
+tabela que ele imprime:
+
+```bash
+# scan ao vivo (coleta + relatório + imprime a tabela markdown):
+python src/collect_liga_live.py --sets PRE
+
+# a partir de um CSV de ofertas já coletado (imprime a mesma tabela):
+LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
+```
+
+(`python src/main.py` em modo mock também imprime a tabela.)
+
+### Formato canônico da tabela (o que `build_markdown` emite) — padrão MYP
+
+Desde 2026-07-02 a entrega é o **formato padrão da frota** (espelho do
+`myp_summary.py` do repo `myp-arbitrage-scanner`), em **3 buckets**:
+
+1. **🟢 Aprovados (match exato)** — margem em **negrito**:
+   `| # | Margem % | Liga R$ | TCG US$ | Dif | Carta | Set | Raridade | Cond | Qtd | Links |`
+2. **⚠️ Aprovados com match fuzzy (validar manualmente)** — mesmas colunas + `Match` (score); o caveat fica no título da seção (padrão MYP), não numa coluna Nota.
+3. **❌ Reprovados (margem < 30% ou preço < R$50)** — mesmas colunas + `Match`; garante o invariante da frota de mostrar **TODAS** as linhas comparadas (não amostra curada).
+
+- **Carta** = nome **+ número**, SEM `#` (ex. `Umbreon ex 161`, estilo MYP). O número vem de `Comparison.card_number`; sem número, só o nome; não duplica se já está no nome.
+- **Dif** = lucro bruto em R$ (`TCG R$ − Liga R$`).
+- **Raridade** / **Qtd** = `—` (a Liga não expõe raridade nem estoque por oferta); **Cond** = `NM` (invariante NM-only).
+- **Links** = `[oferta](url) · [TCG](url)` — **clicáveis e verificáveis**, SEMPRE os dois lados quando existirem (a oferta na Liga e a referência de preço no TCGplayer). Nunca inventar URL.
+- Formatação: `R$800,00` / `US$300.00` / `95.0%`; `—` para valor ausente. ⚠️ **Gotcha do `fmt_pct`:** a margem da Liga já é percentual — o `fmt_pct` local NÃO multiplica por 100 (diferente do MYP, onde a margem é fração).
+- Colunas `Status`/`Nota` NÃO existem (saíram em 2026-07-02 — o bucket codifica o status).
+- O procedimento completo de scan + entrega está fixado no skill **`.claude/skills/scan-liga/SKILL.md`**.
+
+### Piso de preço — SÓ para cartas
+
+O piso de **R$50** (`MIN_PRICE_BRL` em `src/pricing/margin.py`) é filtro de
+relevância que vale **apenas para cartas avulsas**. **Produtos selados (ETB,
+booster box, bundle, tin etc.) NÃO têm piso de preço** — regra do operador
+(2026-07-02). Selados nem são escopo deste scanner (a Liga aqui é
+singles-only); eles moram no repo `sealed-scanner`. Se um dia este scanner
+cobrir selados, o piso NÃO se aplica a eles.
+
+### Arquivo só sob pedido explícito
+
+- O scanner **pode escrever** `reports/report_*.{json,csv,xlsx}` como subproduto local (gitignorado/efêmero) — tudo bem. O ponto é a **ENTREGA**: ela é a tabela markdown no chat, não um anexo.
+- Gerar/anexar arquivo (`SendUserFile`) **só quando o operador pedir explicitamente** (ex.: "me manda o XLSX pra importar em lote"). Sem pedido = sem arquivo.
 
 ## Coletor ao vivo (src/collectors/liga_live.py)
 
@@ -88,6 +173,11 @@ barrado pelo Cloudflare). Pontos-chave:
   herdados do scanner de selados; ground truth validado por screenshot).
   Se um dígito não decodificar, a carta é pulada com aviso
   (`preco_nao_decodificado`) — preço NUNCA é inventado.
+- **URL de listagem exige `edid`** (armadilha nº 3, fix #39): a Liga mudou o
+  roteamento (2026-06) e a URL de listagem passou a **exigir o `edid` numérico**
+  além do código do set — a URL antiga (`?view=cards/search&card=ed=CODE`) cai
+  na home SEM cartas. O coletor extrai o mapa `{CODIGO: edid}` da página de
+  edições e monta a URL com os dois (`edid` + `ed` no mesmo parâmetro `card=`).
 - **"Extra: Foil" NÃO exclui**: em carta chase (SIR/secret) todos os
   vendedores marcam Foil (a carta só existe em foil). O lado TCG já casa a
   versão certa (busca por número + prioridade holofoil).
@@ -112,6 +202,8 @@ barrado pelo Cloudflare). Pontos-chave:
 | `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `live` (coleta ao vivo) / `http` (stub) |
 | `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path — header `card_name,set_name,price_brl,url[,condition,seller,card_number]` |
 | `LIGA_SETS` | — | códigos de set p/ `live` via env (ex. `PRE,SSP`); a CLI `collect_liga_live.py` é o caminho preferido |
+| `LIGA_LIVE_HEADLESS` | — | `1` = Chrome headless no modo `live` via env (mesmo aviso da flag `--headless`) |
+| `LIGA_LIVE_RESUME` | — | `1` = retoma do checkpoint no modo `live` via env (equivale a `--resume`) |
 | `LIGA_TCG_SOURCE` | `mock` | `mock` / `csv` / `pokemontcg` / `api` (stub) |
 | `LIGA_TCG_CSV` | `data/tcgplayer_prices.csv` | path — header `card_name,set_name,market_price_usd[,url]` |
 | `LIGA_POKEMONTCG_CACHE_DIR` | `data/cache/pokemontcg` | path / vazio (desabilita cache) |
@@ -122,12 +214,32 @@ Caminho de produção manual (você fornece só as ofertas; o preço TCG vem aut
 LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
 ```
 
-O scanner integrado (`C:\Users\mathe\integrated-scanner`) consome exatamente
-esse caminho: ele roda `src/main.py` com `LIGA_OFFERS_SOURCE=csv` se existir
-`data/liga_offers.csv` real — que é o arquivo que `collect_liga_live.py`
-gera. Fluxo: coletar ao vivo aqui → integrado lê sozinho.
+O scanner integrado (repo `integrated-scanner`; pasta local no PC do operador
+`C:\Users\mathe\integrated-scanner`) consome exatamente esse caminho: ele roda
+`src/main.py` com `LIGA_OFFERS_SOURCE=csv` se existir `data/liga_offers.csv`
+real — que é o arquivo que `collect_liga_live.py` gera. Fluxo: coletar ao vivo
+aqui → integrado lê sozinho.
 
-Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no `.gitignore`.
+Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no
+`.gitignore`. Para os modos `csv`/`mock` há dados de exemplo versionados:
+`data/liga_offers.example.csv`, `data/tcgplayer_prices.example.csv`,
+`data/liga_offers_mock.json`, `data/tcgplayer_prices_mock.json`.
+
+## Testes
+
+```bash
+python -m pytest -q    # pytest.ini na raiz (testpaths=tests, pythonpath=.)
+```
+
+199 testes (contagem verificada por `pytest --collect-only -q` em 2026-07-07 —
+se divergir, o número real vence). Suíte offline: os testes exercitam
+parsers/helpers puros; o browser é importado lazy e nunca é lançado.
+
+**CI — UM workflow** (Python 3.11, dispara em push na `main` e em todo PR):
+
+- `.github/workflows/ci.yml` ("CI"): `pytest -q` + smoke do scanner com dados
+  mock (`python src/main.py` com `LIGA_USD_BRL_RATE=5.20`).
+- (O antigo `tests.yml`, redundante, foi removido no PR #46, 2026-07-07.)
 
 ## Arquitetura
 
@@ -143,7 +255,7 @@ src/matching/
   card_matcher.py        match_cards() -> Comparison.  exato por número -> exato (chave normalizada) -> fuzzy difflib (nome .7 / set .3, thr .82); ordena por margem. Comparison carrega card_number (p/ a coluna Carta) + match_score (fuzzy => "validar manualmente")
   normalization.py       lowercase, remove acento, aliases de set (obf -> obsidian flames...), VMAX/VSTAR/VUNION
 src/pricing/
-  currency.py            get_exchange_rate() (fixo / auto); convert_usd_to_brl()
+  currency.py            get_exchange_rate() (fixo / auto via AwesomeAPI); convert_usd_to_brl()
   margin.py              calculate_margin(); is_approved().  MIN_MARGIN=30% (bruta, sem taxa), MIN_PRICE=R$50
 src/reporting/
   markdown.py            build_markdown() — a ENTREGA canonica (tabela markdown formato MYP, 3 buckets, links clicaveis). main.py imprime isto no fim.
@@ -152,91 +264,58 @@ src/reporting/
 
 ## Convenções e gotchas
 
-- **Dependências mínimas**: só `urllib` (stdlib) + `openpyxl`. `requests`/`beautifulsoup4`/`lxml` foram removidos por não serem usados; não readicionar sem uso real.
+- **Dependências (requirements.txt):** o pipeline de relatório usa `urllib`
+  (stdlib) para HTTP + `openpyxl` para o XLSX; o coletor ao vivo trouxe
+  `patchright` (Chrome real anti-detect), `beautifulsoup4` (parser HTML, com o
+  `html.parser` da stdlib — **não** precisa de `lxml`) e `pillow`+`numpy`
+  (template matching do preço). `requests` e `lxml` seguem fora — **não
+  readicionar dependência sem uso real**.
 - **Coletores nunca abortam o pipeline por dado ruim**: pulam a linha inválida com `logger.warning` e seguem.
 - **`http` (Liga) e `api` (TCGplayer) são stubs propositais** — Liga bloqueia clientes não-browser (403) e o TCGplayer oficial exige credenciais. O brief proíbe burlar bloqueios; use `csv` ou `pokemontcg`.
 - **pokemontcg.io**: para cards com várias versões no mesmo set, escolhe a de **menor `market`** (assume que a Liga lista a versão regular).
-- **CI** (`.github/workflows/ci.yml`): Python 3.11 -> `pytest -q` + smoke do scanner com dados mock. Dispara em push na `main` e em todo PR.
 
-## Estado e pendências
+## Fluxo de desenvolvimento e segurança
 
-- **Entrega alinhada ao formato padrão MYP + skill `scan-liga` (2026-07-02)**:
-  `build_markdown` foi reescrito no formato canônico da frota (espelho do
-  `myp_summary.py`): 3 buckets (🟢 exatos / ⚠️ fuzzy "validar manualmente" /
-  ❌ reprovados), colunas `# | Margem % | Liga R$ | TCG US$ | Dif | Carta |
-  Set | Raridade | Cond | Qtd | Links`, links `[oferta](url) · [TCG](url)`,
-  Carta sem `#`, moedas/percentual formatados (`R$800,00`, `US$300.00`,
-  `95.0%`). Colunas `Status`/`Nota` saíram (o bucket codifica o status).
-  Criado o skill `.claude/skills/scan-liga/SKILL.md` (procedimento único de
-  scan + entrega obrigatória + regra do piso). ⚠️ gotcha interno: a margem
-  da Liga já é percentual — o `fmt_pct` daqui NÃO multiplica por 100 (o do
-  MYP multiplica, lá a margem é fração). 184 testes.
-- **Entrega canônica em tabela markdown (2026-06-17)**: `src/reporting/markdown.py`
-  (`build_markdown`) virou a saída de entrega; `main.py` o imprime no fim de
-  todo scan (substituiu a tabela de texto fixo). `Comparison` carrega
-  `card_number` (coluna Carta = nome + número) e a célula de Links é clicável.
-  Match fuzzy → "validar manualmente".
-- `main` funcional, 106 testes, CI verde. PRs #15 e #16 já mergeados.
-- **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de apagar/renomear branch. Manter `main` + a branch ativa.
-- Arquivar o repositório duplicado `liga-arbitrage-scanner`.
-- **README.md é minimalista DE PROPÓSITO** (release público discreto — espelha o
-  template do CardTrader/COMC): título neutro `price-compare-tool`, sem
+- **Branch + PR, nunca push direto em `main`** (padrão da frota; o estado real
+  do projeto mora no código mergeado em `main` — branches/PRs são propostas).
+- **Sem CHANGELOG.md nem marcador de versão** neste repo: a fonte de verdade de
+  "estado atual" é o `main` + o histórico de PRs (ver seção Estado abaixo).
+- **Dados de scan ficam FORA do repo público**: CSVs reais e
+  `reports/report_*.{json,csv,xlsx}` são gitignorados. Chaves/segredos
+  (`POKEMONTCG_API_KEY`) nunca versionados.
+- **README.md é minimalista DE PROPÓSITO** (release público discreto — espelha
+  o template do CardTrader/COMC): título neutro `price-compare-tool`, sem
   Pokémon/Liga/TCG/arbitragem nem árvore de arquitetura. **NÃO "consertar"
   re-adicionando seções "Estrutura"/"Próximos passos"** — isso reexporia o caso
   de uso e regrediria a discrição do release público. A doc técnica canônica
   (arquitetura, módulos, fluxo) é **este `CLAUDE.md`**, não o README. *(A antiga
   pendência de "doc drift no README" foi resolvida por essa sanitização — as
-  seções desatualizadas deixaram de existir.)*
+  seções desatualizadas deixaram de existir.)* Ver também
+  `PUBLIC-RELEASE-CHECKLIST.md` e `SECURITY.md` na raiz.
 
----
+## Estado, pendências e histórico
 
-## 📤 Entrega de resultados — tabela markdown no chat, NUNCA arquivo (MANDATÓRIO)
+Histórico condensado (mais recente primeiro; detalhes normativos nas seções próprias):
 
-**Regra dura (operador, 2026-06-06). Vale para TODOS os scanners (CardTrader / MYP / Liga / sealed / PSA).**
+- **#44 (2026-07-06)** — honestidade de câmbio/preço (guard contra câmbio
+  não-positivo) + fix de crash cp1252 no Windows.
+- **#42** — sync do skill `/auto` v3.2 da frota (execução segura de runs longos).
+- **#39 (fix liga-live)** — a Liga mudou o roteamento: URL de listagem passou a
+  exigir `edid` (ver armadilha nº 3 na seção do coletor ao vivo).
+- **#41 (2026-07-02)** — entrega alinhada ao **formato padrão MYP** + skill
+  `scan-liga` + regra do piso só-cartas: `build_markdown` reescrito no formato
+  canônico da frota (3 buckets, colunas padrão, links `[oferta] · [TCG]`,
+  saíram as colunas `Status`/`Nota`). Formato completo + gotcha do `fmt_pct` na
+  seção 📤 (fonte única — não duplicar aqui).
+- **2026-06-17** — entrega canônica em tabela markdown: `build_markdown` virou a
+  saída de entrega, impressa pelo `main.py` no fim de todo scan (substituiu a
+  tabela de texto fixo); `Comparison` ganhou `card_number` e links clicáveis;
+  match fuzzy → "validar manualmente".
+- PRs #15 e #16 mergeados (histórico); `main` funcional, CI verde.
 
-O resultado de um scan é entregue ao operador **como tabela markdown no chat do Claude Code** — no **terminal ou no app**. **NÃO** entregar como arquivo `.xlsx`/`.csv` para download por padrão.
+Pendências vivas:
 
-### A entrega é SEMPRE gerada pela ferramenta do repo — nunca montada à mão
-
-A tabela de entrega é produzida por **`src/reporting/markdown.py` (`build_markdown`)**, que o `src/main.py` imprime automaticamente no fim de todo scan. **NÃO** transcrever números do CSV/JSON/XLSX para uma tabela escrita na mão — isso introduz erro e perde colunas. Sempre rode o pipeline e copie a tabela que ele imprime:
-
-```bash
-# scan ao vivo (coleta + relatório + imprime a tabela markdown):
-python src/collect_liga_live.py --sets PRE
-
-# a partir de um CSV de ofertas já coletado (imprime a mesma tabela):
-LIGA_OFFERS_SOURCE=csv LIGA_TCG_SOURCE=pokemontcg python src/main.py
-```
-
-(No Windows use `.venv\Scripts\python.exe`. Esses comandos foram verificados nesta sessão — `python src/main.py` em modo mock também imprime a tabela.)
-
-### Formato canônico da tabela (o que `build_markdown` emite) — padrão MYP
-
-Desde 2026-07-02 a entrega é o **formato padrão da frota** (espelho do
-`myp_summary.py` do repo myp-arbitrage-scanner), em **3 buckets**:
-
-1. **🟢 Aprovados (match exato)** — margem em **negrito**:
-   `| # | Margem % | Liga R$ | TCG US$ | Dif | Carta | Set | Raridade | Cond | Qtd | Links |`
-2. **⚠️ Aprovados com match fuzzy (validar manualmente)** — mesmas colunas + `Match` (score); o caveat fica no título da seção (padrão MYP), não numa coluna Nota.
-3. **❌ Reprovados (margem < 30% ou preço < R$50)** — mesmas colunas + `Match`; garante o invariante da frota de mostrar **TODAS** as linhas comparadas (não amostra curada).
-
-- **Carta** = nome **+ número**, SEM `#` (ex. `Umbreon ex 161`, estilo MYP). O número vem de `Comparison.card_number`; sem número, só o nome; não duplica se já está no nome.
-- **Dif** = lucro bruto em R$ (`TCG R$ − Liga R$`).
-- **Raridade** / **Qtd** = `—` (a Liga não expõe raridade nem estoque por oferta); **Cond** = `NM` (invariante NM-only).
-- **Links** = `[oferta](url) · [TCG](url)` — **clicáveis e verificáveis**, SEMPRE os dois lados quando existirem (a oferta na Liga e a referência de preço no TCGplayer). Nunca inventar URL.
-- Formatação: `R$800,00` / `US$300.00` / `95.0%`; `—` para valor ausente. ⚠️ A margem da Liga já é percentual — o `fmt_pct` local NÃO multiplica por 100 (diferente do MYP, onde a margem é fração).
-- O procedimento completo de scan + entrega está fixado no skill **`.claude/skills/scan-liga/SKILL.md`**.
-
-### Piso de preço — SÓ para cartas
-
-O piso de **R$50** (`MIN_PRICE_BRL` em `src/pricing/margin.py`) é filtro de
-relevância que vale **apenas para cartas avulsas**. **Produtos selados (ETB,
-booster box, bundle, tin etc.) NÃO têm piso de preço** — regra do operador
-(2026-07-02). Selados nem são escopo deste scanner (a Liga aqui é
-singles-only); eles moram no repo `sealed-scanner`. Se um dia este scanner
-cobrir selados, o piso NÃO se aplica a eles.
-
-### Arquivo só sob pedido explícito
-
-- O scanner **pode escrever** `reports/report_*.{json,csv,xlsx}` como subproduto local (gitignorado/efêmero) — tudo bem. O ponto é a **ENTREGA**: ela é a tabela markdown no chat, não um anexo.
-- Gerar/anexar arquivo (`SendUserFile`) **só quando o operador pedir explicitamente** (ex.: "me manda o XLSX pra importar em lote"). Sem pedido = sem arquivo.
+- **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto
+  bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
+  apagar/renomear branch. Manter `main` + a branch ativa.
+- Arquivar o repositório duplicado `liga-arbitrage-scanner`.
