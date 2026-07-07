@@ -58,7 +58,7 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q       # suíte de testes (193 testes verificados em 2026-07-06)
+python -m pytest -q       # suíte de testes (199 testes verificados em 2026-07-07)
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 
@@ -231,7 +231,7 @@ Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no
 python -m pytest -q    # pytest.ini na raiz (testpaths=tests, pythonpath=.)
 ```
 
-193 testes (contagem verificada por `pytest --collect-only -q` em 2026-07-06 —
+199 testes (contagem verificada por `pytest --collect-only -q` em 2026-07-07 —
 se divergir, o número real vence). Suíte offline: os testes exercitam
 parsers/helpers puros; o browser é importado lazy e nunca é lançado.
 

@@ -32,10 +32,14 @@ def get_exchange_rate() -> float:
         logger.warning("AwesomeAPI indisponivel; usando fallback %.2f", DEFAULT_USD_BRL_RATE)
         return DEFAULT_USD_BRL_RATE
     try:
-        return float(raw)
+        rate = float(raw)
     except ValueError:
         logger.warning("LIGA_USD_BRL_RATE=%r invalido; usando fallback %.2f", raw, DEFAULT_USD_BRL_RATE)
         return DEFAULT_USD_BRL_RATE
+    if not rate > 0:  # rejeita 0, negativo e NaN — cambio nao positivo corromperia toda margem
+        logger.warning("LIGA_USD_BRL_RATE=%r nao positivo; usando fallback %.2f", raw, DEFAULT_USD_BRL_RATE)
+        return DEFAULT_USD_BRL_RATE
+    return rate
 
 
 def _fetch_live_rate() -> float | None:
@@ -53,9 +57,11 @@ def _fetch_live_rate() -> float | None:
         return None
     bid = entry.get("bid")
     try:
-        return float(bid)
+        rate = float(bid)
     except (TypeError, ValueError):
         return None
+    # Cotacao nao positiva (ou NaN) e dado quebrado da API — cai no fallback.
+    return rate if rate > 0 else None
 
 
 def convert_usd_to_brl(amount_usd: float, rate: float | None = None) -> float:
