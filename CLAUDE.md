@@ -300,6 +300,8 @@ src/reporting/
 
 Histórico condensado (mais recente primeiro; detalhes normativos nas seções próprias):
 
+- **#44 (2026-07-06)** — honestidade de câmbio/preço (guard contra câmbio
+  não-positivo) + fix de crash cp1252 no Windows.
 - **#42** — sync do skill `/auto` v3.2 da frota (execução segura de runs longos).
 - **#39 (fix liga-live)** — a Liga mudou o roteamento: URL de listagem passou a
   exigir `edid` (ver armadilha nº 3 na seção do coletor ao vivo).
