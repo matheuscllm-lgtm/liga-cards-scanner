@@ -33,6 +33,7 @@ selados moram no repo sealed-scanner).
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 if TYPE_CHECKING:  # evita import circular em runtime
     from src.matching.card_matcher import Comparison
@@ -97,6 +98,15 @@ def carta_label(name: str, number: str = "") -> str:
     return name
 
 
+def _md_url(url: str) -> str:
+    """Percent-encoda a URL pra ser clicavel em `[label](url)`: espacos, aspas
+    e PARENTESES crus ((ING), (Kit Pre-Lancamento)) viram %XX sem re-encodar
+    %XX existentes. Em markdown o `)` cru fecha o link no primeiro parentese e
+    o wrap `<url>` nao e respeitado por todo renderizador (oferta truncada no
+    remote-control, operador 2026-08-04 — mesmo fix do sealed snapshot.md_link)."""
+    return quote(url, safe="%/?&=:+,*")
+
+
 def _links(c: "Comparison") -> str:
     """Celula de links clicaveis: oferta na Liga + referencia TCGplayer.
 
@@ -104,9 +114,9 @@ def _links(c: "Comparison") -> str:
     os links que existirem; '—' se nenhum. NUNCA inventa URL."""
     parts = []
     if c.liga_url:
-        parts.append(f"[oferta]({c.liga_url})")
+        parts.append(f"[oferta]({_md_url(c.liga_url)})")
     if c.tcg_url:
-        parts.append(f"[TCG]({c.tcg_url})")
+        parts.append(f"[TCG]({_md_url(c.tcg_url)})")
     return " · ".join(parts) if parts else "—"
 
 
