@@ -19,7 +19,11 @@ from dataclasses import dataclass
 
 from src.collectors.liga_pokemon import LigaOffer
 from src.collectors.tcgplayer import TCGReference
-from src.matching.normalization import normalize_card_name, normalize_set_name
+from src.matching.normalization import (
+    normalize_card_name,
+    normalize_card_number,
+    normalize_set_name,
+)
 from src.pricing.currency import convert_usd_to_brl
 from src.pricing.margin import (
     MIN_MARGIN_PERCENT,
@@ -33,6 +37,10 @@ logger = logging.getLogger(__name__)
 FUZZY_MATCH_THRESHOLD = 0.82
 NAME_WEIGHT = 0.7
 SET_WEIGHT = 0.3
+# Score do match por nome quando AMBOS os lados tem numero e eles divergem:
+# a ref e de OUTRA versao do mesmo nome (regular vs SIR) — margem pode estar
+# inflada/deflacionada. < 1.0 manda a linha pro bucket "validar manualmente".
+CROSS_NUMBER_SCORE = 0.8
 
 
 @dataclass
@@ -123,9 +131,11 @@ def match_cards(
         for ref in tcg_references
     }
     # Indice por numero (camada 1): so refs que informam card_number.
+    # Numero NORMALIZADO ("009" -> "9"): Liga zero-padda, pokemontcg.io nao —
+    # comparar cru nunca casa e tudo caia no match por nome (FP de variante).
     index_by_number: dict[tuple[str, str, str], TCGReference] = {
         (*_normalized_key(ref.card_name, ref.set_name),
-         getattr(ref, "card_number", "")): ref
+         normalize_card_number(getattr(ref, "card_number", ""))): ref
         for ref in tcg_references
         if getattr(ref, "card_number", "")
     }
@@ -145,10 +155,21 @@ def match_cards(
         score = 1.0
         ref = None
         offer_number = getattr(offer, "card_number", "")
-        if offer_number:
-            ref = index_by_number.get((*offer_key, offer_number))
+        offer_number_norm = normalize_card_number(offer_number)
+        if offer_number_norm:
+            ref = index_by_number.get((*offer_key, offer_number_norm))
         if ref is None:
             ref = index.get(offer_key)
+            if (
+                ref is not None
+                and offer_number_norm
+                and normalize_card_number(getattr(ref, "card_number", ""))
+                and normalize_card_number(getattr(ref, "card_number", ""))
+                != offer_number_norm
+            ):
+                # Ref de OUTRO numero do mesmo nome (regular vs full art/SIR):
+                # nao e match exato — preco pode ser de versao mais cara.
+                score = CROSS_NUMBER_SCORE
         if ref is None:
             ref, score = _find_best_fuzzy(offer_key, index, fuzzy_threshold)
             if ref is None:

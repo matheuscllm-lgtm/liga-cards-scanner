@@ -108,6 +108,12 @@ def fetch_price(
     """
     query = f'name:"{card_name}" set.name:"{set_name}"'
     if card_number:
+        # A Liga zero-padda ("009"); a API guarda "9". Sem normalizar, a query
+        # por numero volta vazia e o fallback sem numero pode casar a variante
+        # errada (cara) do mesmo nome — referencia inflada, deal falso.
+        from src.matching.normalization import normalize_card_number
+
+        card_number = normalize_card_number(card_number)
         query = f'{query} number:"{card_number}"'
 
     cache_path = _resolve_cache_path(cache_dir, query)

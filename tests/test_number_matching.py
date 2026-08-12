@@ -47,6 +47,34 @@ class TestMatchPorNumero:
         assert len(result) == 1
         assert result[0].price_tcg_usd == pytest.approx(100.0)
 
+    def test_zero_padding_da_liga_casa_com_numero_sem_padding(self):
+        # Liga: "059"; pokemontcg.io: "59". Camada 1 deve casar mesmo assim.
+        refs = [_ref(number="161", usd=900.0), _ref(number="59", usd=30.0)]
+        result = match_cards([_offer(number="059")], refs, exchange_rate=5.0)
+        assert len(result) == 1
+        assert result[0].price_tcg_usd == pytest.approx(30.0)
+        assert result[0].match_score == 1.0
+
+    def test_match_por_nome_com_numero_divergente_nao_e_exato(self):
+        # FP real (scan 2026-08-11): oferta Blastoise ex 184 casou por nome
+        # com a ref do #200 (SIR, US$137.85) e saiu "match exato" no bucket
+        # aprovado. Com numeros divergentes o score cai pra < 1.0 (validar
+        # manualmente).
+        refs = [_ref(name="Blastoise ex", number="200", usd=137.85)]
+        offers = [_offer(name="Blastoise ex", number="184", price=299.99)]
+        result = match_cards(offers, refs, exchange_rate=5.0)
+        assert len(result) == 1
+        assert result[0].match_score < 1.0
+
+    def test_normalize_card_number_casos(self):
+        from src.matching.normalization import normalize_card_number
+
+        assert normalize_card_number("009") == "9"
+        assert normalize_card_number("184") == "184"
+        assert normalize_card_number("TG12") == "tg12"
+        assert normalize_card_number(" 038 ") == "38"
+        assert normalize_card_number("") == ""
+
 
 class TestQueriesComNumero:
     def test_pokemontcg_recebe_card_number(self, monkeypatch):
@@ -98,6 +126,32 @@ class TestQueriesComNumero:
         assert calls == ["125", None]  # tentou com numero, depois sem
         assert len(refs) == 1
         assert refs[0].price_usd == pytest.approx(5.0)
+
+    def test_zero_padding_da_liga_e_normalizado_na_query(self, tmp_path):
+        # Cache pre-populado sob o hash da query NORMALIZADA ("009" -> "9").
+        # Se fetch_price normalizar, acha o cache e responde offline; se nao,
+        # tentaria rede (e o payload plantado provaria a query errada).
+        import json
+
+        from src.collectors.pokemontcg import _resolve_cache_path, fetch_price
+
+        query = 'name:"Blastoise ex" set.name:"151" number:"9"'
+        payload = {"data": [{
+            "name": "Blastoise ex", "number": "9",
+            "set": {"name": "151"},
+            "tcgplayer": {"url": "https://tcg/9",
+                          "prices": {"holofoil": {"market": 3.9}}},
+        }]}
+        path = _resolve_cache_path(tmp_path, query)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+        result = fetch_price(
+            "Blastoise ex", "151", card_number="009", cache_dir=tmp_path,
+        )
+        assert result is not None
+        assert result.card_number == "9"
+        assert result.price_usd == pytest.approx(3.9)
 
     def test_queries_de_pares_seguem_funcionando(self, monkeypatch):
         def fake_fetch_price(card_name, set_name, card_number=None, **kw):
