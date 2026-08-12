@@ -58,7 +58,7 @@ Aprovado  ⇔  preço_liga ≥ R$50  E  margem ≥ 30%
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q       # suíte de testes (199 testes verificados em 2026-07-07)
+python -m pytest -q       # suíte de testes (204 testes verificados em 2026-08-12)
 python src/main.py        # roda o scanner (default: tudo mock, sem internet)
                           # -> reports/report_<timestamp>.{json,csv,xlsx}
 
@@ -200,7 +200,7 @@ barrado pelo Cloudflare). Pontos-chave:
 |---|---|---|
 | `LIGA_USD_BRL_RATE` | `5.20` | float / `auto` (cotação ao vivo AwesomeAPI, fallback 5.20) |
 | `LIGA_OFFERS_SOURCE` | `mock` | `mock` / `csv` / `live` (coleta ao vivo) / `http` (stub) |
-| `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path — header `card_name,set_name,price_brl,url[,condition,seller,card_number]` |
+| `LIGA_OFFERS_CSV` | `data/liga_offers.csv` | path — header `card_name,set_name,price_brl,url[,condition,seller,card_number]`; linha com `condition` explícita ≠ `NM` (match EXATO) é pulada com aviso (invariante NM-only; coluna ausente/vazia = NM) |
 | `LIGA_SETS` | — | códigos de set p/ `live` via env (ex. `PRE,SSP`); a CLI `collect_liga_live.py` é o caminho preferido |
 | `LIGA_LIVE_HEADLESS` | — | `1` = Chrome headless no modo `live` via env (mesmo aviso da flag `--headless`) |
 | `LIGA_LIVE_RESUME` | — | `1` = retoma do checkpoint no modo `live` via env (equivale a `--resume`) |
@@ -231,7 +231,7 @@ Os CSVs reais (`liga_offers.csv`, `tcgplayer_prices.csv`) estão no
 python -m pytest -q    # pytest.ini na raiz (testpaths=tests, pythonpath=.)
 ```
 
-199 testes (contagem verificada por `pytest --collect-only -q` em 2026-07-07 —
+204 testes (contagem verificada por `pytest --collect-only -q` em 2026-08-12 —
 se divergir, o número real vence). Suíte offline: os testes exercitam
 parsers/helpers puros; o browser é importado lazy e nunca é lançado.
 
