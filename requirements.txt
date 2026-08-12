@@ -1,6 +1,10 @@
 # Pipeline (relatorio): stdlib (urllib) para HTTP + openpyxl para o XLSX.
 openpyxl>=3.1.0
 
+# Suite de testes (o CLAUDE.md manda `pip install -r requirements.txt` seguido
+# de `python -m pytest -q` — sem esta linha, ambiente limpo falha no pytest).
+pytest>=8
+
 # Coletor AO VIVO da Liga (src/collectors/liga_live.py):
 # - patchright: Playwright "anti-detect" que controla o Google Chrome real
 #   (headful) e passa o Cloudflare da Liga. Requer Chrome instalado.
