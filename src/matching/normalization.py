@@ -70,3 +70,21 @@ def normalize_card_name(name: str) -> str:
 def normalize_set_name(set_name: str) -> str:
     s = normalize_text(set_name)
     return SET_ALIASES.get(s, s)
+
+
+def normalize_card_number(number: str) -> str:
+    """Normaliza o numero da carta para comparacao/consulta entre fontes.
+
+    A Liga zero-padda o numero ("009", "038"); a pokemontcg.io guarda sem
+    padding ("9", "38") — comparar/consultar cru nunca casa e o pipeline cai
+    no match por nome, que cruza variantes do mesmo nome (regular vs SIR) e
+    infla a referencia (FP Blastoise ex 184->200, scan 2026-08-11).
+    So dígitos: tira zeros a esquerda. Sufixos/prefixos (TG12, GG44, SWSH250)
+    ficam como estao, apenas lowercase+trim.
+    """
+    if not number:
+        return ""
+    s = number.strip().lower()
+    if s.isdigit():
+        return str(int(s))
+    return s
