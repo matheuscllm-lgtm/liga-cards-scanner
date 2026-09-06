@@ -9,6 +9,10 @@ description: >-
   e não mudam de sessão pra sessão.
 ---
 
+REGRA VIGENTE DO OPERADOR: ler DELIVERY_CHAT.md na raiz do repositório. Entrega somente no chat, preço de referência clicável, coleta nova sob demanda; não executar scans no GitHub Actions nem publicar resultados. Esta regra substitui instruções antigas conflitantes abaixo.
+
+
+
 # Scan da Liga Pokémon — procedimento único + entrega no formato MYP
 
 Este skill existe para que **todo scan da Liga rode do MESMO jeito e a entrega
