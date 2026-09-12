@@ -420,12 +420,13 @@ Histórico condensado (mais recente primeiro; detalhes normativos nas seções p
 Pendências vivas:
 
 - **Apagar branches órfãs** (era a "issue #17" — o repo tem issues
-  DESABILITADAS, a API responde 410; a tarefa vive só aqui). Bloqueio real
-  (2026-09-12): o classificador de permissão da sessão de nuvem nega
-  `git push --delete` como ação destrutiva, e o GitHub MCP não apaga branch —
-  é ação manual da operadora. Auditoria de 2026-09-12 (`git merge-tree` contra
-  `origin/main`): **5 branches são no-op** (mergear não muda nada na `main`) e
-  podem ir sem perda —
+  DESABILITADAS, a API responde 410; a tarefa vive só aqui). Bloqueio real,
+  confirmado 2026-09-12 **mesmo com a operadora autorizando o delete**: o
+  proxy git da sessão de nuvem responde **HTTP 403** a `git push --delete`
+  (o classificador de permissão também nega por padrão), e o GitHub MCP não
+  apaga branch — só sai do PC do operador. Auditoria de 2026-09-12
+  (`git merge-tree` contra `origin/main`): **5 branches são no-op** (mergear
+  não muda nada na `main`), a operadora já autorizou apagá-las —
   `claude/plugin-installation-setup-cb94ve`,
   `claude/pokemon-cards-scanner-review-yqm1vy`,
   `claude/pokemon-scanner-singles-dyzu9a`,
@@ -433,7 +434,8 @@ Pendências vivas:
   `feat/chat-only-delivery`.
   As demais **têm conteúdo fora da `main`** (proposta não mergeada, ou PR
   aberto — #52 graphify, #54 sync-auto) e pedem decisão, não limpeza.
-  Comando (PC do operador): `git push origin --delete <branch>`.
+  Comando (PC do operador, uma linha):
+  `git push origin --delete claude/plugin-installation-setup-cb94ve claude/pokemon-cards-scanner-review-yqm1vy claude/pokemon-scanner-singles-dyzu9a claude/self-evolving-agent-integration-budf77 feat/chat-only-delivery`
 - **Arquivar o repositório duplicado `liga-arbitrage-scanner`** — em
   2026-09-12 ele **não aparece** na lista de repos acessíveis à conta na nuvem
   (`list_repos` com "liga"/"arbitrage" só devolve este repo, `myp-` e `ebay-`).
