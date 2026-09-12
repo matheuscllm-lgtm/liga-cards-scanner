@@ -96,7 +96,7 @@ def fetch_price(
     user_agent: str = DEFAULT_USER_AGENT,
     timeout: float = DEFAULT_TIMEOUT,
     delay_after: float = 1.0,
-    cache_dir: str | Path | None = "default",
+    cache_dir: str | Path | None = None,
     cache_ttl: float = DEFAULT_CACHE_TTL_SECONDS,
     retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
 ) -> PokemonTCGResult | None:

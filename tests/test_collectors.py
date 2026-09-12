@@ -1,4 +1,6 @@
 """Testes dos coletores TCGplayer e Liga em modo mock e CSV."""
+import logging
+
 import pytest
 
 from src.collectors.liga_pokemon import (
@@ -248,6 +250,26 @@ class TestLigaCsvMode:
         )
         offers = fetch_offers(source="csv", csv_path=path)
         assert [o.card_name for o in offers] == ["Ok", "Outro"]
+
+    def test_skips_non_nm_condition(self, tmp_path, caplog):
+        # Invariante NM-only da frota: condicao explicita != "NM" (match
+        # EXATO) e pulada com aviso — o pipeline nao re-checa condicao e a
+        # tabela de entrega imprime "NM" literal em toda linha; uma SP que
+        # passasse aqui sairia rotulada como NM em silencio.
+        path = self._write_csv(
+            tmp_path,
+            "Limpa,Set X,100.00,https://liga/a,NM,LojaA\n"
+            "Vazada SP,Set X,90.00,https://liga/b,SP,LojaB\n"
+            "Vazada minuscula,Set X,80.00,https://liga/c,nm,LojaC\n"
+            "Sem condicao,Set X,70.00,https://liga/d,,\n",
+        )
+        with caplog.at_level(logging.WARNING):
+            offers = fetch_offers(source="csv", csv_path=path)
+        # "nm" minusculo tambem cai: match e EXATO ("NM"), nunca frouxo —
+        # o coletor ao vivo so grava "NM"; valor divergente e dado suspeito.
+        assert [o.card_name for o in offers] == ["Limpa", "Sem condicao"]
+        assert all(o.condition == "NM" for o in offers)
+        assert "nao e NM" in caplog.text
 
     def test_raises_on_missing_required_columns(self, tmp_path):
         path = tmp_path / "liga.csv"

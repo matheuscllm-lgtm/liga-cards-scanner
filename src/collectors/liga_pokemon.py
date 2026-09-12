@@ -18,6 +18,12 @@ Formato esperado do CSV (header obrigatorio):
 `condition`, `seller` e `card_number` opcionais. Linhas em branco e
 linhas iniciadas por ``#`` sao ignoradas. Precos invalidos sao puladas
 com aviso no logger, sem matar o pipeline.
+
+Invariante NM-only (frota): `condition` explicita e diferente de "NM"
+(match EXATO, ex. "SP") e PULADA com aviso — a tabela de entrega imprime
+"Cond = NM" em toda linha, entao deixar uma SP passar rotularia condicao
+errada em silencio. Coluna ausente/valor vazio segue valendo "NM" (o CSV
+canonico vem do coletor ao vivo, que so grava ofertas NM).
 """
 from __future__ import annotations
 
@@ -138,13 +144,26 @@ def _load_csv(path: Path) -> list[LigaOffer]:
                     row.get("price_brl"),
                 )
                 continue
+            condition = (row.get("condition") or "NM").strip() or "NM"
+            if condition != "NM":
+                # Invariante NM-only: match EXATO, nunca substring. O pipeline
+                # (matcher/entrega) nao re-checa condicao e a tabela imprime
+                # "NM" literal — uma SP que passasse aqui sairia rotulada NM.
+                logger.warning(
+                    "Linha %d em %s ignorada: condicao %r nao e NM "
+                    "(invariante NM-only da frota)",
+                    line_no,
+                    path,
+                    row.get("condition"),
+                )
+                continue
             offers.append(
                 LigaOffer(
                     card_name=(row["card_name"] or "").strip(),
                     set_name=(row["set_name"] or "").strip(),
                     price_brl=price,
                     url=(row["url"] or "").strip(),
-                    condition=(row.get("condition") or "NM").strip() or "NM",
+                    condition=condition,
                     seller=(row.get("seller") or "").strip(),
                     card_number=(row.get("card_number") or "").strip(),
                 )

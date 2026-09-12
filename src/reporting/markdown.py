@@ -32,6 +32,8 @@ selados moram no repo sealed-scanner).
 """
 from __future__ import annotations
 
+from .chat_format import reference_price
+
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
@@ -134,7 +136,7 @@ def _row(idx: int, c: "Comparison", *, bold_margin: bool,
         str(idx),
         margin,
         fmt_brl(c.price_liga_brl),
-        fmt_usd(c.price_tcg_usd),
+        reference_price(fmt_usd(c.price_tcg_usd), c.tcg_url),
         fmt_brl(c.price_tcg_brl - c.price_liga_brl),
         _escape(carta_label(c.card_name, c.card_number)),
         _escape(c.set_name),
