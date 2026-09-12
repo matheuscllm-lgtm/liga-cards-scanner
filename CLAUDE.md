@@ -348,6 +348,20 @@ Ressalvas:
 - **`cartographer` gasta tokens de verdade** (subagents em paralelo sobre o codebase
   inteiro): rodar sob demanda, não em loop.
 
+## Ambiente do operador — OmniRoute (fora do pipeline)
+
+`OMNIROUTE.md` na raiz documenta como ligar o **Claude Code** a um gateway
+OmniRoute local para que, **quando a cota de um modelo acaba, a cadeia (combo)
+troque de modelo sozinha**. É manual de ambiente: o scanner é Python puro e
+**não chama LLM nenhum** — nada ali muda scan, margem, piso ou entrega.
+
+Duas decisões que valem como regra: (1) **nunca** versionar
+`.claude/settings.json` com `ANTHROPIC_BASE_URL` apontando pro gateway — settings
+de projeto também valem nas sessões do Claude Code na nuvem, que não enxergam
+`127.0.0.1:20128`, e isso quebraria toda sessão remota; o ambiente entra no shell
+que abre o Claude Code. (2) Token `oma_live_...` **nunca** versionado, e salvo
+**sem BOM** (erro recorrente nº 1 da frota).
+
 ## Estado, pendências e histórico
 
 Histórico condensado (mais recente primeiro; detalhes normativos nas seções próprias):
