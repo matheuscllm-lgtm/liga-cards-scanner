@@ -243,6 +243,61 @@ parsers/helpers puros; o browser é importado lazy e nunca é lançado.
   mock (`python src/main.py` com `LIGA_USD_BRL_RATE=5.20`).
 - (O antigo `tests.yml`, redundante, foi removido no PR #46, 2026-07-07.)
 
+## 🧠 graphify — grafo de conhecimento do repo
+
+Ferramenta de **desenvolvimento** (não entra no pipeline do scanner): transforma
+o repo num grafo consultável — parsing AST determinístico, 100% local, sem vector
+store e sem API key. Serve pra responder "quem chama o quê" sem varrer arquivo
+por arquivo. Vale a pena aqui porque o fluxo é espalhado
+(`liga_live` → `card_matcher` → `margin` → `markdown`) e a pergunta típica
+("o que quebra se eu mexer em `Comparison`?") hoje custa vários greps.
+
+**Instalação (uma vez por máquina):** o próprio pacote instala a skill em
+`.claude/skills/graphify/`. Os arquivos da skill **não** são versionados aqui —
+são ~50 KB de instruções de terceiro que envelhecem a cada release do graphify, e
+`install --project` regenera em segundos. O pacote também **não** entra no
+`requirements.txt`: regra do repo é não adicionar dependência sem uso real no
+pipeline, e ele puxa ~25 parsers tree-sitter.
+
+```bash
+pip install graphifyy         # no PyPI o nome é graphifyy (o `graphify` está sendo reavido)
+graphify install --project    # grava .claude/skills/graphify/ + hooks em .claude/settings.json
+graphify --version            # confere (validado aqui na 0.9.58)
+```
+
+No Windows (PC do operador): instale fora do `.venv` **ou** garanta
+`.venv\Scripts\` no PATH — o hook opcional abaixo chama `graphify` puro.
+
+Uso:
+
+```bash
+/graphify .                                        # constrói o grafo -> graphify-out/
+/graphify query "quem consome Comparison.card_number?"
+/graphify path "fetch_offers" "build_markdown"     # caminho mais curto entre dois nós
+/graphify . --update                               # reindexa só o que mudou
+```
+
+A saída (`graphify-out/graph.json`, `graph.html`, `GRAPH_REPORT.md`) é
+**gitignorada**: é artefato de build e, por higiene de release público, um mapa
+da arquitetura não deve ir pro repo público (mesma razão do README minimalista).
+
+### Hooks "always-on" — por que ficam locais
+
+`install --project` também grava um `PreToolUse` em `.claude/settings.json` que
+empurra o agente pro grafo antes de cada grep/read. Esse arquivo **não** é
+versionado de propósito: o hook roda um comando a **cada** tool call e, em
+máquina sem `graphify` no PATH (sessão na nuvem, CI, clone novo), vira erro em
+toda chamada. O guard falha aberto — sem `graphify-out/graph.json` ele não
+imprime nada e sai 0 —, então o custo é só o processo por chamada.
+
+`.claude/skills/graphify/` está no `.gitignore`; `.claude/settings.json` (onde os
+hooks caem) **não** está — se rodar `install --project` e não quiser os hooks no
+repo, deixe o arquivo sem commitar.
+
+```bash
+graphify uninstall    # remove skill + hooks de todas as plataformas detectadas
+```
+
 ## Arquitetura
 
 ```
