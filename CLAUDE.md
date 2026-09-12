@@ -335,3 +335,16 @@ Pendências vivas:
   bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
   apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
+- **Seções `## Sobre a Eli` e `## Decisões` ainda não existem** — são o destino
+  dos baldes 1 e 2 do skill `/reflect` (PR #53). O skill cria de forma
+  idempotente na primeira rodada (preferências antes de "Convenções da frota",
+  decisões antes de "Estado, pendências e histórico"); falta decidir se as
+  seções são semeadas antes disso.
+- **Os 4 baldes do `/reflect` foram definidos neste repo** — o anexo com a
+  estrutura da versão de chat do skill (que grava na memória) não chegou na
+  sessão. Conferir se os baldes batem com aquela versão antes de tratar o
+  formato como padrão da frota.
+- **Caminho `scanners-commons` do `/reflect` (§4d) nunca foi exercitado** — o
+  repo é privado e fica fora do escopo GitHub de uma sessão de nuvem; o
+  `add_repo` previsto no skill não foi testado. Até o primeiro uso real, vale o
+  fallback honesto (colar o issue pronto no chat).
