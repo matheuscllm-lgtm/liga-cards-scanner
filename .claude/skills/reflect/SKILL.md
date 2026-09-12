@@ -179,7 +179,13 @@ Como registrar:
    precisa mudar.
 2. Repo privado `matheuscllm-lgtm/scanners-commons` — em sessão de nuvem ele
    **não está no escopo GitHub por padrão**: anexe com `add_repo`
-   (`owner=matheuscllm-lgtm`, `repo=scanners-commons`) antes de tentar.
+   (`owner=matheuscllm-lgtm`, `repo=scanners-commons`) e clone em
+   `/home/user/scanners-commons` (verificado 2026-09-12: funciona, e o repo
+   tem issues habilitadas). O manual de erros é `01-ERROS-COMUNS.md`: entradas
+   numeradas com **O que é / Como percebe / Como evita** — uma armadilha
+   cross-scanner vira a próxima entrada nesse formato, e o "Padrão" no fim do
+   arquivo agrupa tudo em 4 famílias (segredo, git, honestidade de preço,
+   entrega). Não invente um formato paralelo.
 3. **Sem acesso → não fabrique sucesso.** Cole no chat o issue pronto pra colar
    e aponte a cópia-mestra local `C:\Users\mathe\scanners-commons\`. Dizer
    "registrei no commons" sem ter registrado é o mesmo pecado de afirmar CI
