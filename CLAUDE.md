@@ -335,6 +335,14 @@ src/reporting/
 
 - **Branch + PR, nunca push direto em `main`** (padrão da frota; o estado real
   do projeto mora no código mergeado em `main` — branches/PRs são propostas).
+- **Nunca monitorar PR; só criar o PR e avisar** (operador, 2026-09-12).
+  Depois de abrir o PR, a sessão reporta o link no chat e **para**: não chama
+  `subscribe_pr_activity`, não agenda check-in (`send_later`/routine) nem faz
+  poll de CI/review. Motivo: cada acordar relê o contexto inteiro (centenas de
+  milhares de tokens) pra, quase sempre, confirmar "nada mudou" — 4 check-ins
+  no PR #52 sem nenhuma ação; CI e review o GitHub já notifica. Vale em todos os
+  modos, inclusive `/auto`. Exceção única: o operador pedir **explicitamente**
+  ("acompanha esse PR").
 - **Sem CHANGELOG.md nem marcador de versão** neste repo: a fonte de verdade de
   "estado atual" é o `main` + o histórico de PRs (ver seção Estado abaixo).
 - **Dados de scan ficam FORA do repo público**: CSVs reais e
