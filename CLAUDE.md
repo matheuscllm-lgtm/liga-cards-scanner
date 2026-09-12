@@ -16,6 +16,19 @@ bruta ≥ 30% e preço ≥ R$50. Orientação para qualquer sessão Claude Code
 > (org `matheuscllm-lgtm`); a pasta local no **PC do operador** é
 > **`C:\Users\mathe\liga-pokemon-scanner`**. É o mesmo projeto.
 
+## Sobre a Eli
+
+Preferências de interação da operadora (destino do balde 1 do `/reflect`; uma
+linha por preferência, no imperativo, com data/fonte). Regra de negócio NÃO
+fica aqui — vai em `## Decisões`.
+
+- **Resposta concisa, com o porquê de cada decisão e exemplo prático/real** —
+  não narrar opções que não vai seguir. (preferência declarada no perfil,
+  2026-09-12)
+- **Pendência vai pra lista "Pendências vivas" deste `CLAUDE.md`**, não pra
+  issue — o repo tem issues DESABILITADAS (a API responde 410). (pedido de
+  2026-09-12)
+
 ## 🛰️ Convenções da frota (cross-scanner)
 
 > **Manual completo** (repo privado): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
@@ -362,6 +375,28 @@ de projeto também valem nas sessões do Claude Code na nuvem, que não enxergam
 que abre o Claude Code. (2) Token `oma_live_...` **nunca** versionado, e salvo
 **sem BOM** (erro recorrente nº 1 da frota).
 
+## Decisões
+
+Martelos batidos pela operadora (destino do balde 2 do `/reflect`). Uma linha
+por decisão: **decisão + data + motivo**; quando a regra tem seção própria, o
+item aponta pra ela (fonte única, sem cópia).
+
+- **Margem BRUTA, mínimo 30%, em todos os scanners de TCG** (2026-06-06) —
+  taxas o operador calcula por fora. → § Propósito do repositório.
+- **Entrega = tabela markdown no chat, nunca arquivo por padrão** (2026-06-06)
+  — arquivo só sob pedido explícito. → § 📤 Entrega de resultados.
+- **Selados não têm piso de preço** (2026-06-27) — o piso é filtro de
+  relevância de single. → § Convenções da frota.
+- **Piso R$50 só para cartas + formato padrão MYP na entrega** (2026-07-02,
+  PR #41). → § 📤 Entrega de resultados.
+- **Coleta nova a cada solicitação; nenhum resultado no GitHub** (2026-09-06)
+  — nunca reutilizar preço de outro scan. → `DELIVERY_CHAT.md`.
+- **Nunca versionar `.claude/settings.json` com `ANTHROPIC_BASE_URL`; token do
+  gateway sem BOM** — quebraria toda sessão de nuvem. → § OmniRoute.
+- **`/reflect` grava em `CLAUDE.md` + `scanners-commons`, não em memória, e
+  mostra antes de salvar** (2026-09-12, PR #53) — memória não viaja pra sessão
+  de nuvem. → `.claude/skills/reflect/SKILL.md`.
+
 ## Estado, pendências e histórico
 
 Histórico condensado (mais recente primeiro; detalhes normativos nas seções próprias):
@@ -384,7 +419,36 @@ Histórico condensado (mais recente primeiro; detalhes normativos nas seções p
 
 Pendências vivas:
 
-- **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto
-  bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
-  apagar/renomear branch. Manter `main` + a branch ativa.
-- Arquivar o repositório duplicado `liga-arbitrage-scanner`.
+- **Apagar branches órfãs** (era a "issue #17" — o repo tem issues
+  DESABILITADAS, a API responde 410; a tarefa vive só aqui). Bloqueio real,
+  confirmado 2026-09-12 **mesmo com a operadora autorizando o delete**: o
+  proxy git da sessão de nuvem responde **HTTP 403** a `git push --delete`
+  (o classificador de permissão também nega por padrão), e o GitHub MCP não
+  apaga branch — só sai do PC do operador. Auditoria de 2026-09-12
+  (`git merge-tree` contra `origin/main`): **5 branches são no-op** (mergear
+  não muda nada na `main`), a operadora já autorizou apagá-las —
+  `claude/plugin-installation-setup-cb94ve`,
+  `claude/pokemon-cards-scanner-review-yqm1vy`,
+  `claude/pokemon-scanner-singles-dyzu9a`,
+  `claude/self-evolving-agent-integration-budf77`,
+  `feat/chat-only-delivery`.
+  As demais **têm conteúdo fora da `main`** (proposta não mergeada, ou PR
+  aberto — #52 graphify, #54 sync-auto) e pedem decisão, não limpeza.
+  Comando (PC do operador, uma linha):
+  `git push origin --delete claude/plugin-installation-setup-cb94ve claude/pokemon-cards-scanner-review-yqm1vy claude/pokemon-scanner-singles-dyzu9a claude/self-evolving-agent-integration-budf77 feat/chat-only-delivery`
+- **Arquivar o repositório duplicado `liga-arbitrage-scanner`** — em
+  2026-09-12 ele **não aparece** na lista de repos acessíveis à conta na nuvem
+  (`list_repos` com "liga"/"arbitrage" só devolve este repo, `myp-` e `ebay-`).
+  `add_repo` também responde "não encontrado ou sem acesso". Ou já foi
+  apagado, ou é privado sem grant pro conector do Claude: conferir no GitHub
+  logado; se existir, arquivar em Settings → Danger Zone (não há ferramenta
+  MCP pra isso — é clique manual).
+- **Os 4 baldes do `/reflect` foram definidos neste repo** — o anexo com a
+  estrutura da versão de chat do skill (que grava na memória) não chegou na
+  sessão, e o `scanners-commons` não tem nenhum `/reflect` pra comparar
+  (verificado 2026-09-12). Conferir com a versão do chat antes de tratar o
+  formato como padrão da frota.
+- **(proposta) Levar o `/reflect` pra frota pelo `scanners-commons`** — como o
+  `/auto` (mestra em `tooling/auto.md` + `tooling/sync-auto-skill.sh` para os
+  8 repos). Hoje o skill só existe aqui; sem isso cada scanner terá a sua
+  cópia divergente.
