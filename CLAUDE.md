@@ -295,6 +295,59 @@ src/reporting/
   seções desatualizadas deixaram de existir.)* Ver também
   `PUBLIC-RELEASE-CHECKLIST.md` e `SECURITY.md` na raiz.
 
+## 🔌 Plugins do Claude Code (setup do operador, todos os repos)
+
+Decisão do operador (2026-09-11): plugins instalados **globalmente** (scope `user`,
+que é o default do CLI — grava em `C:\Users\mathe\.claude\settings.json` e vale em
+qualquer repo). **NÃO declarar em `.claude/settings.json` do repo**: seria uma
+segunda fonte de verdade (project scope) e ainda dependeria do prompt de
+workspace trust. Rodar **uma vez** no PowerShell do PC:
+
+```powershell
+# 1) marketplaces-fonte — nenhum dos tres vive em anthropics/claude-code (repo de DEMOS)
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin marketplace add thedotmack/claude-mem
+claude plugin marketplace add kingbootoshi/cartographer
+
+# 2) install — sem --scope de proposito: default 'user' = todos os repos
+claude plugin install claude-code-setup@claude-plugins-official
+claude plugin install claude-mem@thedotmack
+claude plugin install cartographer@cartographer-marketplace
+
+claude plugin list   # conferir; depois reabrir o Claude (ou /reload-plugins)
+```
+
+| Plugin | Origem | O que traz |
+|---|---|---|
+| `claude-code-setup` | **Anthropic (oficial)** | 1 skill: analisa o codebase e sugere hooks/skills/MCP/subagents sob medida |
+| `claude-mem` | terceiro (`thedotmack`) | memória persistente entre sessões: 20 skills, 6 hooks, 1 MCP (`mcp-search`) |
+| `cartographer` | terceiro (`kingbootoshi`) | 1 skill: mapeia o codebase com subagents em paralelo → `docs/CODEBASE_MAP.md` |
+
+Todas as skills são *model-invoked* (nenhuma tem `disable-model-invocation`): o
+Claude dispara sozinho quando a tarefa casa com a descrição. Os hooks do
+`claude-mem` rodam em toda sessão sem pedir.
+
+Ressalvas:
+
+- **`claude-mem` é o caro dos três**: ~2.000 tokens *always-on* + hook `PostToolUse`
+  disparando um worker node a cada chamada de ferramenta. Em scan ao vivo da Liga
+  (centenas de páginas, Chrome headful) isso pesa — `claude plugin disable claude-mem`
+  antes do scan se atrapalhar. Depende de disco persistente (`~/.claude-mem`) e de
+  `node` no PATH: em sessão remota (container efêmero) a memória morre junto; o
+  valor dele é no PC.
+- **Podar skills fora de escopo** (opcional), em `C:\Users\mathe\.claude\settings.json`
+  → `"skillOverrides": { "claude-mem:<skill>": "off" }` para `wowerpoint`,
+  `design-is`, `standup`, `weekly-digests`, `timeline-report`, `oh-my-issues`,
+  `version-bump`, `mode-creator`, `ccs-align`. `"off"` some do contexto e do menu
+  `/`; `"user-invocable-only"` some do contexto mas ainda responde ao `/`. Mantém o
+  núcleo de memória (`mem-search`, `pathfinder`, `smart-explore`, `learn-codebase`,
+  `make-plan`).
+- **Dois são de terceiros** e registram hooks que executam comandos locais;
+  `claude plugin update <nome>` puxa código novo desses repos — atualizar de forma
+  consciente.
+- **`cartographer` gasta tokens de verdade** (subagents em paralelo sobre o codebase
+  inteiro): rodar sob demanda, não em loop.
+
 ## Ambiente do operador — OmniRoute (fora do pipeline)
 
 `OMNIROUTE.md` na raiz documenta como ligar o **Claude Code** a um gateway
