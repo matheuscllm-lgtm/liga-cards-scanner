@@ -437,8 +437,10 @@ Pendências vivas:
 - **Arquivar o repositório duplicado `liga-arbitrage-scanner`** — em
   2026-09-12 ele **não aparece** na lista de repos acessíveis à conta na nuvem
   (`list_repos` com "liga"/"arbitrage" só devolve este repo, `myp-` e `ebay-`).
-  Ou já foi arquivado/apagado, ou a sessão não o enxerga: conferir no GitHub;
-  se existir, arquivar em Settings → Danger Zone (não há ferramenta MCP).
+  `add_repo` também responde "não encontrado ou sem acesso". Ou já foi
+  apagado, ou é privado sem grant pro conector do Claude: conferir no GitHub
+  logado; se existir, arquivar em Settings → Danger Zone (não há ferramenta
+  MCP pra isso — é clique manual).
 - **Os 4 baldes do `/reflect` foram definidos neste repo** — o anexo com a
   estrutura da versão de chat do skill (que grava na memória) não chegou na
   sessão, e o `scanners-commons` não tem nenhum `/reflect` pra comparar
