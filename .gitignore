@@ -258,3 +258,10 @@ validate_*.py
 # Browser profile (lives in HOME, but guard against a local copy landing here)
 .pw_profile_liga_singles/
 **/pw_profile_*/
+
+# graphify: saida do grafo (artefato de build + mapa da arquitetura, que por
+# higiene de release publico nao vai pro repo). Reconstroi com `/graphify .`
+graphify-out/
+# graphify: a skill e instalada por maquina com `graphify install --project`
+# (~50 KB de instrucoes de terceiro que envelhecem a cada release) — ver CLAUDE.md
+.claude/skills/graphify/
