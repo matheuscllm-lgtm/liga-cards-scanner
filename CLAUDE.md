@@ -24,7 +24,7 @@ bruta ≥ 30% e preço ≥ R$50. Orientação para qualquer sessão Claude Code
 
 ## 🛰️ Convenções da frota (cross-scanner)
 
-> **Manual completo** (repo privado): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
+> **Manual completo** (repo público): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
 
 Invariantes que valem para TODOS os scanners:
 
@@ -536,11 +536,5 @@ Pendências vivas:
   3. Decidir se usa Headroom no dia a dia (`headroom wrap claude`, com
      `$env:ANTHROPIC_TARGET_API_URL = "http://127.0.0.1:20128"` quando o
      OmniRoute estiver ligado). Lembrete: base URL custom desliga o `/rc`.
-  4. Opcional: apagar no GitHub as branches já mergeadas
-     `claude/install-model-skills-mlx4u6` (aqui) e
-     `claude/plugins-claude-code-frota` (commons) — o remoto não consegue.
   Ao concluir, remover este item daqui e do doc 07 do commons.
-- **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto
-  bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
-  apagar/renomear branch. Manter `main` + a branch ativa.
 - Arquivar o repositório duplicado `liga-arbitrage-scanner`.
