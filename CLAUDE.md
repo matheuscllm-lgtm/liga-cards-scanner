@@ -450,6 +450,27 @@ Histórico condensado (mais recente primeiro; detalhes normativos nas seções p
 
 Pendências vivas:
 
+- **🔌 Setup global do Claude Code — RETOMAR NO PC (aberto em 2026-09-14).**
+  A receita está mergeada (PR #55 aqui + PR #18 no `scanners-commons`,
+  `07-PLUGINS-CLAUDE-CODE.md`), mas a instalação em si é manual e ainda
+  **não foi feita**. Ao retomar uma sessão no PC do operador, lembrar e
+  conduzir, nesta ordem:
+  1. Rodar `scripts/setup_claude_plugins.ps1` no PowerShell (3 marketplaces +
+     `claude-code-setup`, `claude-mem`, `cartographer` em scope `user` +
+     `pip install "headroom-ai[proxy]"`). Conferir com `claude plugin list`.
+  2. Task Observer: regerar o bundle do clone de
+     `rebelytics/one-skill-to-rule-them-all` (receita no doc 07), fazer upload
+     em claude.ai → Settings → Capabilities → Skills e colar o bloco de
+     ativação nas **preferências pessoais do claude.ai** com o workspace
+     `C:\Users\mathe\task-observer-workspace`. Validar numa sessão **nova**: a
+     skill deve disparar antes da primeira ferramenta.
+  3. Decidir se usa Headroom no dia a dia (`headroom wrap claude`, com
+     `$env:ANTHROPIC_TARGET_API_URL = "http://127.0.0.1:20128"` quando o
+     OmniRoute estiver ligado). Lembrete: base URL custom desliga o `/rc`.
+  4. Opcional: apagar no GitHub as branches já mergeadas
+     `claude/install-model-skills-mlx4u6` (aqui) e
+     `claude/plugins-claude-code-frota` (commons) — o remoto não consegue.
+  Ao concluir, remover este item daqui e do doc 07 do commons.
 - **Issue #17** — apagar 14 branches órfãs. É tarefa manual: o ambiente remoto
   bloqueia `git push --delete` (403) e o GitHub MCP não tem ferramenta de
   apagar/renomear branch. Manter `main` + a branch ativa.
