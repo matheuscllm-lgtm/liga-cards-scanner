@@ -301,7 +301,8 @@ Decisão do operador (2026-09-11): plugins instalados **globalmente** (scope `us
 que é o default do CLI — grava em `C:\Users\mathe\.claude\settings.json` e vale em
 qualquer repo). **NÃO declarar em `.claude/settings.json` do repo**: seria uma
 segunda fonte de verdade (project scope) e ainda dependeria do prompt de
-workspace trust. Rodar **uma vez** no PowerShell do PC:
+workspace trust. Rodar **uma vez** no PowerShell do PC — ou o script equivalente
+`scripts/setup_claude_plugins.ps1`, que faz tudo abaixo (e o Headroom) de uma vez:
 
 ```powershell
 # 1) marketplaces-fonte — nenhum dos tres vive em anthropics/claude-code (repo de DEMOS)
@@ -316,6 +317,12 @@ claude plugin install cartographer@cartographer-marketplace
 
 claude plugin list   # conferir; depois reabrir o Claude (ou /reload-plugins)
 ```
+
+> ✅ Comandos **validados de ponta a ponta** em sessão remota (2026-09-14, Claude
+> Code 2.1.270): os 3 marketplaces clonam, os 3 plugins instalam em scope `user`
+> (`claude-code-setup` 1.0.0, `claude-mem` 13.24.23, `cartographer` 1.4.0) e
+> gravam `enabledPlugins` + `extraKnownMarketplaces` no `settings.json`. Sessão
+> remota é efêmera — a instalação que vale é a do PC.
 
 | Plugin | Origem | O que traz |
 |---|---|---|
@@ -347,6 +354,65 @@ Ressalvas:
   consciente.
 - **`cartographer` gasta tokens de verdade** (subagents em paralelo sobre o codebase
   inteiro): rodar sob demanda, não em loop.
+
+### Os "5 plugins" do reel (@99hud, 2026-08-05) — status e como cada um se instala
+
+O reel lista 5 ferramentas; **só duas são plugins de verdade** no sentido do CLI
+(`claude plugin install`). As outras três são gateway, proxy Python e skill —
+cada uma se instala por um canal diferente, e é o canal que decide se ela vale
+"em todo o Claude Code e no Cowork":
+
+| # do reel | Ferramenta | O que é de fato | Como instala (global) | Vale no Cowork? |
+|---|---|---|---|---|
+| 1 | **OmniRoute** | gateway local (porta 20128) | `npm i -g omniroute` + `ANTHROPIC_BASE_URL` no shell — ver `OMNIROUTE.md` | Não (o Cowork não lê `ANTHROPIC_BASE_URL`) |
+| 2 | **Claude Mem** | plugin do CLI | `claude plugin install claude-mem@thedotmack` (acima) | Não automaticamente — plugins do CLI e do Cowork são catálogos separados |
+| 3 | **Headroom** | proxy local Python (Apache 2.0) | `pip install "headroom-ai[proxy]"` → `headroom wrap claude` | Não (mesmo motivo do OmniRoute) |
+| 4 | **Claude Code Setup** | plugin **oficial** da Anthropic | `claude plugin install claude-code-setup@claude-plugins-official` (acima) | Não automaticamente (idem nº 2) |
+| 5 | **Task Observer** | **skill** (CC BY 4.0, Eoghan Henn / rebelytics.com) | upload de `task-observer.skill` em claude.ai → Settings → Capabilities → Skills | **Sim** — é o único que fica global de verdade (claude.ai + Cowork + Claude Code) |
+
+Regras que saem daí (verificadas nas docs oficiais em 2026-09-14):
+
+- **Plugins do CLI ≠ plugins do Cowork.** `claude plugin install` grava em
+  `~/.claude/settings.json` e vale em todo repo do Claude Code (terminal, VS Code,
+  sessão web). O Cowork tem catálogo próprio (Customize → Plugins no app) e **não
+  lê** esse arquivo — se quiser `claude-mem`/`cartographer` lá, tem que instalar
+  pelo app (se o catálogo dele oferecer). Não há sincronização entre os dois.
+- **Skills sincronizam, plugins não.** Skill enviada em claude.ai → Settings →
+  Capabilities → Skills aparece em *todas* as superfícies: chat, Cowork e Claude
+  Code (chega em `~/.claude/skills/synced/`, inclusive na sessão remota — as skills
+  `reel`, `reflect`, `myp-scanner` etc. já chegam por esse canal). Sentido único:
+  claude.ai → Claude Code. Skill colocada só em `~/.claude/skills/` do PC **não**
+  sobe pro Cowork nem pro claude.ai.
+- **Headroom + OmniRoute encadeiam** (Headroom na frente, OmniRoute atrás): o
+  `headroom wrap claude` seta `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` sozinho,
+  e o *upstream* do proxy vem de `ANTHROPIC_TARGET_API_URL` (default
+  `api.anthropic.com`; lido em `headroom/providers/registry.py`). Para manter o
+  fallback de modelo do OmniRoute:
+  `$env:ANTHROPIC_TARGET_API_URL = "http://127.0.0.1:20128"; headroom wrap claude`.
+  Nunca exportar `ANTHROPIC_BASE_URL` fixo pro Headroom no perfil do shell — ele
+  gerencia isso por sessão e `headroom unwrap claude` desfaz.
+- **Headroom: efeito colateral documentado pelo próprio projeto** — com
+  `ANTHROPIC_BASE_URL` custom, o Claude Code ≥ 2.1.196 **desliga o Remote Control**
+  (`/rc`) e, sem `--1m`, cai pra janela de 200k. Se o operador usa `/rc` pra
+  espelhar a sessão no celular, rodar o Claude sem o wrap nesses dias.
+- **Task Observer precisa de ativação, não só de upload.** A descrição da skill
+  sozinha dispara pouco; o próprio projeto manda colar um bloco de ativação onde o
+  Claude sempre lê. Para valer global (Cowork + Claude Code), o lugar é o campo de
+  **preferências pessoais do claude.ai** (não o CLAUDE.md de um repo). O texto
+  completo do bloco está em `references/environments.md` dentro do bundle
+  (seção "The activation block"); o essencial é: invocar `task-observer` antes da
+  primeira chamada de ferramenta de qualquer sessão e antes de propor plano, e
+  fixar um **workspace absoluto** para o log de observações, p. ex.
+  `C:\Users\mathe\task-observer-workspace`. O workspace fica **fora** de qualquer
+  repo (o log é do operador, não do projeto) e num caminho fixo — o projeto avisa
+  que workspace derivado do cwd se perde em worktree/clone temporário.
+- **Bundle do Task Observer**: o repo canônico
+  <https://github.com/rebelytics/one-skill-to-rule-them-all> **não publica
+  release** (checado em 2026-09-14), então o `.skill` é gerado por nós a partir do
+  clone (commit `7518a85`, 2026-09-11) com o validador do próprio projeto:
+  `python3 scripts/validate-skill-bundle.py <pasta> --pack task-observer.skill`.
+  O bundle **não é versionado aqui** (conteúdo de terceiro, CC BY 4.0, e o repo é
+  público e minimalista de propósito) — regerar do clone quando quiser atualizar.
 
 ## Ambiente do operador — OmniRoute (fora do pipeline)
 
