@@ -1,3 +1,9 @@
+<!-- FLEET:ESTILO-RESPOSTA v1 (2026-09-14) — cópia-mestra: scanners-commons/08-ESTILO-RESPOSTA.md. Editar LÁ e replicar; não divergir nesta cópia. -->
+> **Estilo de resposta obrigatório (operador, 2026-09-14): CONCISO — teto de 200 palavras.**
+> Toda resposta no chat, nesta ordem: **1) Objetivo** — 1 linha do que foi pedido · **2) O que foi feito** — bullets curtos, cada um com o *porquê* da decisão · **3) Dependências/pendências** — o que falta, o que bloqueia, de quem depende (`nenhuma` quando não houver).
+> O teto conta **só prosa**. **Fora do teto** (nunca resumir, cortar nem "amostrar" pra caber): a tabela de entrega gerada pela ferramenta do repo (colada VERBATIM), blocos de comando/código, saída de teste colada como prova e artefato canônico do repo (brief, relatório, análise).
+> Sem preâmbulo, sem repetir o pedido, sem recapitular o que já foi dito. Não cabe em 200 palavras? Entregue o essencial dentro do teto e ofereça o detalhe ("quer o detalhe de X?") — nunca estoure em silêncio.
+
 > **Regra vigente de entrega:** [DELIVERY_CHAT.md](DELIVERY_CHAT.md). Resultados somente no chat, referência clicável e coleta nova por solicitação; substitui orientações antigas de entrega via GitHub ou preços reutilizados.
 
 # CLAUDE.md — liga-cards-scanner
@@ -31,7 +37,7 @@ fica aqui — vai em `## Decisões`.
 
 ## 🛰️ Convenções da frota (cross-scanner)
 
-> **Manual completo** (repo privado): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
+> **Manual completo** (repo público): https://github.com/matheuscllm-lgtm/scanners-commons — erros comuns, referências de preço, chaves, GitHub Actions e modelo de entrega de TODOS os scanners. Cópia-mestra local (PC do operador): `C:\Users\mathe\scanners-commons\`.
 
 Invariantes que valem para TODOS os scanners:
 
@@ -256,6 +262,61 @@ parsers/helpers puros; o browser é importado lazy e nunca é lançado.
   mock (`python src/main.py` com `LIGA_USD_BRL_RATE=5.20`).
 - (O antigo `tests.yml`, redundante, foi removido no PR #46, 2026-07-07.)
 
+## 🧠 graphify — grafo de conhecimento do repo
+
+Ferramenta de **desenvolvimento** (não entra no pipeline do scanner): transforma
+o repo num grafo consultável — parsing AST determinístico, 100% local, sem vector
+store e sem API key. Serve pra responder "quem chama o quê" sem varrer arquivo
+por arquivo. Vale a pena aqui porque o fluxo é espalhado
+(`liga_live` → `card_matcher` → `margin` → `markdown`) e a pergunta típica
+("o que quebra se eu mexer em `Comparison`?") hoje custa vários greps.
+
+**Instalação (uma vez por máquina):** o próprio pacote instala a skill em
+`.claude/skills/graphify/`. Os arquivos da skill **não** são versionados aqui —
+são ~50 KB de instruções de terceiro que envelhecem a cada release do graphify, e
+`install --project` regenera em segundos. O pacote também **não** entra no
+`requirements.txt`: regra do repo é não adicionar dependência sem uso real no
+pipeline, e ele puxa ~25 parsers tree-sitter.
+
+```bash
+pip install graphifyy         # no PyPI o nome é graphifyy (o `graphify` está sendo reavido)
+graphify install --project    # grava .claude/skills/graphify/ + hooks em .claude/settings.json
+graphify --version            # confere (validado aqui na 0.9.58)
+```
+
+No Windows (PC do operador): instale fora do `.venv` **ou** garanta
+`.venv\Scripts\` no PATH — o hook opcional abaixo chama `graphify` puro.
+
+Uso:
+
+```bash
+/graphify .                                        # constrói o grafo -> graphify-out/
+/graphify query "quem consome Comparison.card_number?"
+/graphify path "fetch_offers" "build_markdown"     # caminho mais curto entre dois nós
+/graphify . --update                               # reindexa só o que mudou
+```
+
+A saída (`graphify-out/graph.json`, `graph.html`, `GRAPH_REPORT.md`) é
+**gitignorada**: é artefato de build e, por higiene de release público, um mapa
+da arquitetura não deve ir pro repo público (mesma razão do README minimalista).
+
+### Hooks "always-on" — por que ficam locais
+
+`install --project` também grava um `PreToolUse` em `.claude/settings.json` que
+empurra o agente pro grafo antes de cada grep/read. Esse arquivo **não** é
+versionado de propósito: o hook roda um comando a **cada** tool call e, em
+máquina sem `graphify` no PATH (sessão na nuvem, CI, clone novo), vira erro em
+toda chamada. O guard falha aberto — sem `graphify-out/graph.json` ele não
+imprime nada e sai 0 —, então o custo é só o processo por chamada.
+
+`.claude/skills/graphify/` está no `.gitignore`; `.claude/settings.json` (onde os
+hooks caem) **não** está — se rodar `install --project` e não quiser os hooks no
+repo, deixe o arquivo sem commitar.
+
+```bash
+graphify uninstall    # remove skill + hooks de todas as plataformas detectadas
+```
+
 ## Arquitetura
 
 ```
@@ -293,6 +354,14 @@ src/reporting/
 
 - **Branch + PR, nunca push direto em `main`** (padrão da frota; o estado real
   do projeto mora no código mergeado em `main` — branches/PRs são propostas).
+- **Nunca monitorar PR; só criar o PR e avisar** (operador, 2026-09-12).
+  Depois de abrir o PR, a sessão reporta o link no chat e **para**: não chama
+  `subscribe_pr_activity`, não agenda check-in (`send_later`/routine) nem faz
+  poll de CI/review. Motivo: cada acordar relê o contexto inteiro (centenas de
+  milhares de tokens) pra, quase sempre, confirmar "nada mudou" — 4 check-ins
+  no PR #52 sem nenhuma ação; CI e review o GitHub já notifica. Vale em todos os
+  modos, inclusive `/auto`. Exceção única: o operador pedir **explicitamente**
+  ("acompanha esse PR").
 - **Sem CHANGELOG.md nem marcador de versão** neste repo: a fonte de verdade de
   "estado atual" é o `main` + o histórico de PRs (ver seção Estado abaixo).
 - **Dados de scan ficam FORA do repo público**: CSVs reais e
@@ -314,7 +383,8 @@ Decisão do operador (2026-09-11): plugins instalados **globalmente** (scope `us
 que é o default do CLI — grava em `C:\Users\mathe\.claude\settings.json` e vale em
 qualquer repo). **NÃO declarar em `.claude/settings.json` do repo**: seria uma
 segunda fonte de verdade (project scope) e ainda dependeria do prompt de
-workspace trust. Rodar **uma vez** no PowerShell do PC:
+workspace trust. Rodar **uma vez** no PowerShell do PC — ou o script equivalente
+`scripts/setup_claude_plugins.ps1`, que faz tudo abaixo (e o Headroom) de uma vez:
 
 ```powershell
 # 1) marketplaces-fonte — nenhum dos tres vive em anthropics/claude-code (repo de DEMOS)
@@ -329,6 +399,12 @@ claude plugin install cartographer@cartographer-marketplace
 
 claude plugin list   # conferir; depois reabrir o Claude (ou /reload-plugins)
 ```
+
+> ✅ Comandos **validados de ponta a ponta** em sessão remota (2026-09-14, Claude
+> Code 2.1.270): os 3 marketplaces clonam, os 3 plugins instalam em scope `user`
+> (`claude-code-setup` 1.0.0, `claude-mem` 13.24.23, `cartographer` 1.4.0) e
+> gravam `enabledPlugins` + `extraKnownMarketplaces` no `settings.json`. Sessão
+> remota é efêmera — a instalação que vale é a do PC.
 
 | Plugin | Origem | O que traz |
 |---|---|---|
@@ -360,6 +436,65 @@ Ressalvas:
   consciente.
 - **`cartographer` gasta tokens de verdade** (subagents em paralelo sobre o codebase
   inteiro): rodar sob demanda, não em loop.
+
+### Os "5 plugins" do reel (@99hud, 2026-08-05) — status e como cada um se instala
+
+O reel lista 5 ferramentas; **só duas são plugins de verdade** no sentido do CLI
+(`claude plugin install`). As outras três são gateway, proxy Python e skill —
+cada uma se instala por um canal diferente, e é o canal que decide se ela vale
+"em todo o Claude Code e no Cowork":
+
+| # do reel | Ferramenta | O que é de fato | Como instala (global) | Vale no Cowork? |
+|---|---|---|---|---|
+| 1 | **OmniRoute** | gateway local (porta 20128) | `npm i -g omniroute` + `ANTHROPIC_BASE_URL` no shell — ver `OMNIROUTE.md` | Não (o Cowork não lê `ANTHROPIC_BASE_URL`) |
+| 2 | **Claude Mem** | plugin do CLI | `claude plugin install claude-mem@thedotmack` (acima) | Não automaticamente — plugins do CLI e do Cowork são catálogos separados |
+| 3 | **Headroom** | proxy local Python (Apache 2.0) | `pip install "headroom-ai[proxy]"` → `headroom wrap claude` | Não (mesmo motivo do OmniRoute) |
+| 4 | **Claude Code Setup** | plugin **oficial** da Anthropic | `claude plugin install claude-code-setup@claude-plugins-official` (acima) | Não automaticamente (idem nº 2) |
+| 5 | **Task Observer** | **skill** (CC BY 4.0, Eoghan Henn / rebelytics.com) | upload de `task-observer.skill` em claude.ai → Settings → Capabilities → Skills | **Sim** — é o único que fica global de verdade (claude.ai + Cowork + Claude Code) |
+
+Regras que saem daí (verificadas nas docs oficiais em 2026-09-14):
+
+- **Plugins do CLI ≠ plugins do Cowork.** `claude plugin install` grava em
+  `~/.claude/settings.json` e vale em todo repo do Claude Code (terminal, VS Code,
+  sessão web). O Cowork tem catálogo próprio (Customize → Plugins no app) e **não
+  lê** esse arquivo — se quiser `claude-mem`/`cartographer` lá, tem que instalar
+  pelo app (se o catálogo dele oferecer). Não há sincronização entre os dois.
+- **Skills sincronizam, plugins não.** Skill enviada em claude.ai → Settings →
+  Capabilities → Skills aparece em *todas* as superfícies: chat, Cowork e Claude
+  Code (chega em `~/.claude/skills/synced/`, inclusive na sessão remota — as skills
+  `reel`, `reflect`, `myp-scanner` etc. já chegam por esse canal). Sentido único:
+  claude.ai → Claude Code. Skill colocada só em `~/.claude/skills/` do PC **não**
+  sobe pro Cowork nem pro claude.ai.
+- **Headroom + OmniRoute encadeiam** (Headroom na frente, OmniRoute atrás): o
+  `headroom wrap claude` seta `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` sozinho,
+  e o *upstream* do proxy vem de `ANTHROPIC_TARGET_API_URL` (default
+  `api.anthropic.com`; lido em `headroom/providers/registry.py`). Para manter o
+  fallback de modelo do OmniRoute:
+  `$env:ANTHROPIC_TARGET_API_URL = "http://127.0.0.1:20128"; headroom wrap claude`.
+  Nunca exportar `ANTHROPIC_BASE_URL` fixo pro Headroom no perfil do shell — ele
+  gerencia isso por sessão e `headroom unwrap claude` desfaz.
+- **Headroom: efeito colateral documentado pelo próprio projeto** — com
+  `ANTHROPIC_BASE_URL` custom, o Claude Code ≥ 2.1.196 **desliga o Remote Control**
+  (`/rc`) e, sem `--1m`, cai pra janela de 200k. Se o operador usa `/rc` pra
+  espelhar a sessão no celular, rodar o Claude sem o wrap nesses dias.
+- **Task Observer precisa de ativação, não só de upload.** A descrição da skill
+  sozinha dispara pouco; o próprio projeto manda colar um bloco de ativação onde o
+  Claude sempre lê. Para valer global (Cowork + Claude Code), o lugar é o campo de
+  **preferências pessoais do claude.ai** (não o CLAUDE.md de um repo). O texto
+  completo do bloco está em `references/environments.md` dentro do bundle
+  (seção "The activation block"); o essencial é: invocar `task-observer` antes da
+  primeira chamada de ferramenta de qualquer sessão e antes de propor plano, e
+  fixar um **workspace absoluto** para o log de observações, p. ex.
+  `C:\Users\mathe\task-observer-workspace`. O workspace fica **fora** de qualquer
+  repo (o log é do operador, não do projeto) e num caminho fixo — o projeto avisa
+  que workspace derivado do cwd se perde em worktree/clone temporário.
+- **Bundle do Task Observer**: o repo canônico
+  <https://github.com/rebelytics/one-skill-to-rule-them-all> **não publica
+  release** (checado em 2026-09-14), então o `.skill` é gerado por nós a partir do
+  clone (commit `7518a85`, 2026-09-11) com o validador do próprio projeto:
+  `python3 scripts/validate-skill-bundle.py <pasta> --pack task-observer.skill`.
+  O bundle **não é versionado aqui** (conteúdo de terceiro, CC BY 4.0, e o repo é
+  público e minimalista de propósito) — regerar do clone quando quiser atualizar.
 
 ## Ambiente do operador — OmniRoute (fora do pipeline)
 
@@ -419,6 +554,24 @@ Histórico condensado (mais recente primeiro; detalhes normativos nas seções p
 
 Pendências vivas:
 
+- **🔌 Setup global do Claude Code — RETOMAR NO PC (aberto em 2026-09-14).**
+  A receita está mergeada (PR #55 aqui + PR #18 no `scanners-commons`,
+  `07-PLUGINS-CLAUDE-CODE.md`), mas a instalação em si é manual e ainda
+  **não foi feita**. Ao retomar uma sessão no PC do operador, lembrar e
+  conduzir, nesta ordem:
+  1. Rodar `scripts/setup_claude_plugins.ps1` no PowerShell (3 marketplaces +
+     `claude-code-setup`, `claude-mem`, `cartographer` em scope `user` +
+     `pip install "headroom-ai[proxy]"`). Conferir com `claude plugin list`.
+  2. Task Observer: regerar o bundle do clone de
+     `rebelytics/one-skill-to-rule-them-all` (receita no doc 07), fazer upload
+     em claude.ai → Settings → Capabilities → Skills e colar o bloco de
+     ativação nas **preferências pessoais do claude.ai** com o workspace
+     `C:\Users\mathe\task-observer-workspace`. Validar numa sessão **nova**: a
+     skill deve disparar antes da primeira ferramenta.
+  3. Decidir se usa Headroom no dia a dia (`headroom wrap claude`, com
+     `$env:ANTHROPIC_TARGET_API_URL = "http://127.0.0.1:20128"` quando o
+     OmniRoute estiver ligado). Lembrete: base URL custom desliga o `/rc`.
+  Ao concluir, remover este item daqui e do doc 07 do commons.
 - **Apagar branches órfãs** (era a "issue #17" — o repo tem issues
   DESABILITADAS, a API responde 410; a tarefa vive só aqui). Bloqueio real,
   confirmado 2026-09-12 **mesmo com a operadora autorizando o delete**: o
@@ -432,8 +585,10 @@ Pendências vivas:
   `claude/pokemon-scanner-singles-dyzu9a`,
   `claude/self-evolving-agent-integration-budf77`,
   `feat/chat-only-delivery`.
-  As demais **têm conteúdo fora da `main`** (proposta não mergeada, ou PR
-  aberto — #52 graphify, #54 sync-auto) e pedem decisão, não limpeza.
+  As demais **têm conteúdo fora da `main`** (proposta não mergeada) e pedem
+  decisão, não limpeza. (#52 graphify e #54 sync-auto já foram mergeados em
+  2026-09-14; as branches deles e as `claude/install-model-skills-mlx4u6`,
+  `claude/skill-reflect-r95lbn` também são só lixo pós-merge.)
   Comando (PC do operador, uma linha):
   `git push origin --delete claude/plugin-installation-setup-cb94ve claude/pokemon-cards-scanner-review-yqm1vy claude/pokemon-scanner-singles-dyzu9a claude/self-evolving-agent-integration-budf77 feat/chat-only-delivery`
 - **Arquivar o repositório duplicado `liga-arbitrage-scanner`** — em
